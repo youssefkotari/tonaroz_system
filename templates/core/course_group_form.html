@@ -1,0 +1,325 @@
+{% extends 'core/base.html' %}
+{% load static %}
+{% block title %}{{ title }} — Centre Tonaroz{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between">
+  <div>
+    <h1 class="page-title">
+      <i class="bi bi-book-half me-2" style="color:var(--primary);"></i>{{ title }}
+    </h1>
+    <p class="page-subtitle">
+      {% if course %}Modifier le groupe de cours{% else %}Créer un nouveau groupe / classe{% endif %}
+    </p>
+  </div>
+  <a href="{% url 'core:courses_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Retour
+  </a>
+</div>
+
+<form method="post" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+    <div class="alert alert-danger mb-4">
+      {% for error in form.non_field_errors %}
+        <div><i class="bi bi-exclamation-circle-fill"></i> {{ error }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="row g-4">
+
+    <!-- Main column -->
+    <div class="col-lg-8">
+
+      <!-- General info card -->
+      <div class="card mb-4">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-info-circle" style="color:var(--primary);font-size:16px;"></i>
+          <span class="fw-600">Informations générales</span>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="{{ form.name.id_for_label }}" class="form-label">
+                {{ form.name.label }} <span style="color:var(--danger);">*</span>
+              </label>
+              {{ form.name }}
+              {% if form.name.errors %}<div class="invalid-feedback d-block">{% for e in form.name.errors %}{{ e }}{% endfor %}</div>{% endif %}
+            </div>
+
+            <div class="col-md-6">
+              <label for="{{ form.subject.id_for_label }}" class="form-label">
+                {{ form.subject.label }} <span style="color:var(--danger);">*</span>
+              </label>
+              {{ form.subject }}
+              {% if form.subject.errors %}<div class="invalid-feedback d-block">{% for e in form.subject.errors %}{{ e }}{% endfor %}</div>{% endif %}
+            </div>
+
+            <div class="col-md-6">
+              <label for="{{ form.level.id_for_label }}" class="form-label">
+                {{ form.level.label }}
+              </label>
+              {{ form.level }}
+              {% if form.level.errors %}<div class="invalid-feedback d-block">{% for e in form.level.errors %}{{ e }}{% endfor %}</div>{% endif %}
+            </div>
+
+            <div class="col-md-6">
+              <label for="{{ form.monthly_price.id_for_label }}" class="form-label">
+                {{ form.monthly_price.label }} <span style="color:var(--danger);">*</span>
+              </label>
+              <div class="input-group">
+                {{ form.monthly_price }}
+                <span class="input-group-text">DH</span>
+              </div>
+              {% if form.monthly_price.errors %}<div class="invalid-feedback d-block">{% for e in form.monthly_price.errors %}{{ e }}{% endfor %}</div>{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Teacher card -->
+      <div class="card mb-4">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-person-badge" style="color:#3b82f6;font-size:16px;"></i>
+          <span class="fw-600">Professeur</span>
+        </div>
+        <div class="card-body">
+          <label for="{{ form.teacher.id_for_label }}" class="form-label">
+            {{ form.teacher.label }} <span style="color:var(--danger);">*</span>
+          </label>
+          {{ form.teacher }}
+          {% if form.teacher.errors %}<div class="invalid-feedback d-block">{% for e in form.teacher.errors %}{{ e }}{% endfor %}</div>{% endif %}
+        </div>
+      </div>
+
+      <!-- Weekly schedules card -->
+      <div class="card mb-4">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center gap-2">
+            <i class="bi bi-calendar3" style="color:#f59e0b;font-size:16px;"></i>
+            <span class="fw-600">Horaires hebdomadaires</span>
+          </div>
+          <button type="button" class="btn btn-sm btn-outline-primary" id="add-schedule-btn">
+            <i class="bi bi-plus-circle"></i> Ajouter créneau
+          </button>
+        </div>
+        <div class="card-body">
+          {{ formset.management_form }}
+          <div id="schedules-container">
+            {% for f in formset %}
+              <div class="row g-3 align-items-end schedule-form-row mb-3 pb-3" style="border-bottom:1px solid var(--border);"
+                   data-form-index="{{ forloop.counter0 }}">
+                {% for hidden in f.hidden_fields %}{{ hidden }}{% endfor %}
+
+                <div class="col-md-3">
+                  <label class="form-label">Jour <span style="color:var(--danger);">*</span></label>
+                  {{ f.day }}
+                  {% if f.day.errors %}<div class="invalid-feedback d-block">{% for e in f.day.errors %}{{ e }}{% endfor %}</div>{% endif %}
+                </div>
+
+                <div class="col-md-3">
+                  <label class="form-label">Début <span style="color:var(--danger);">*</span></label>
+                  {{ f.start_time }}
+                  {% if f.start_time.errors %}<div class="invalid-feedback d-block">{% for e in f.start_time.errors %}{{ e }}{% endfor %}</div>{% endif %}
+                </div>
+
+                <div class="col-md-3">
+                  <label class="form-label">Fin <span style="color:var(--danger);">*</span></label>
+                  {{ f.end_time }}
+                  {% if f.end_time.errors %}<div class="invalid-feedback d-block">{% for e in f.end_time.errors %}{{ e }}{% endfor %}</div>{% endif %}
+                </div>
+
+                <div class="col-md-2">
+                  <label class="form-label">Salle <span style="color:var(--danger);">*</span></label>
+                  {{ f.room }}
+                  {% if f.room.errors %}<div class="invalid-feedback d-block">{% for e in f.room.errors %}{{ e }}{% endfor %}</div>{% endif %}
+                </div>
+
+                <div class="col-md-1 text-end">
+                  {% if formset.can_delete %}
+                    <div class="form-check d-none">{{ f.DELETE }}</div>
+                    <button type="button" class="btn btn-outline-danger btn-sm remove-schedule-btn" title="Supprimer">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  {% endif %}
+                </div>
+
+                <!-- Conflict alert per row -->
+                <div class="col-12 row-conflict-alert alert alert-warning d-none mb-0" style="font-size:13px;">
+                  <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                  <span class="alert-text"></span>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right sidebar -->
+    <div class="col-lg-4">
+
+      <!-- Status -->
+      <div class="card mb-4">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-toggle2-on" style="color:#10b981;font-size:16px;"></i>
+          <span class="fw-600">Statut</span>
+        </div>
+        <div class="card-body">
+          <div class="form-check form-switch">
+            {{ form.is_active }}
+            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+              <span class="badge badge-success">Actif</span>
+              <div class="text-muted mt-1" style="font-size:12px;">Ce groupe est visible et planifiable</div>
+            </label>
+          </div>
+          {% if form.is_active.errors %}<div class="invalid-feedback d-block">{% for e in form.is_active.errors %}{{ e }}{% endfor %}</div>{% endif %}
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="card">
+        <div class="card-body d-flex flex-column gap-2">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-check-lg"></i> {{ button_text }}
+          </button>
+          <a href="{% url 'core:courses_list' %}" class="btn btn-outline-secondary w-100">
+            <i class="bi bi-x-lg"></i> Annuler
+          </a>
+          {% if course %}
+            <hr class="my-1">
+            <a href="{% url 'core:course_group_delete_confirm' course.id %}" class="btn btn-outline-danger w-100">
+              <i class="bi bi-trash"></i> Supprimer ce groupe
+            </a>
+          {% endif %}
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</form>
+
+<!-- Empty form template (hidden) -->
+<div id="empty-form-template" class="d-none">
+  <div class="row g-3 align-items-end schedule-form-row mb-3 pb-3" style="border-bottom:1px solid var(--border);" data-form-index="__prefix__">
+    <div class="col-md-3">
+      <label class="form-label">Jour <span style="color:var(--danger);">*</span></label>
+      {{ formset.empty_form.day }}
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Début <span style="color:var(--danger);">*</span></label>
+      {{ formset.empty_form.start_time }}
+    </div>
+    <div class="col-md-3">
+      <label class="form-label">Fin <span style="color:var(--danger);">*</span></label>
+      {{ formset.empty_form.end_time }}
+    </div>
+    <div class="col-md-2">
+      <label class="form-label">Salle <span style="color:var(--danger);">*</span></label>
+      {{ formset.empty_form.room }}
+    </div>
+    <div class="col-md-1 text-end">
+      <button type="button" class="btn btn-outline-danger btn-sm remove-schedule-btn" title="Supprimer">
+        <i class="bi bi-trash"></i>
+      </button>
+    </div>
+    <div class="col-12 row-conflict-alert alert alert-warning d-none mb-0" style="font-size:13px;">
+      <i class="bi bi-exclamation-triangle-fill me-2"></i><span class="alert-text"></span>
+    </div>
+  </div>
+</div>
+
+<style>.fw-600 { font-weight: 600; }</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const container = document.getElementById('schedules-container');
+  const addBtn = document.getElementById('add-schedule-btn');
+  const totalFormsInput = document.getElementById('id_schedules-TOTAL_FORMS');
+  const emptyTemplate = document.getElementById('empty-form-template').innerHTML;
+  const teacherSelect = document.getElementById('id_teacher');
+  const courseId = "{% if course %}{{ course.id }}{% endif %}";
+
+  function checkRowConflict(row) {
+    const idx = row.getAttribute('data-form-index');
+    const day = row.querySelector(`[name="schedules-${idx}-day"]`)?.value || '';
+    const startTime = row.querySelector(`[name="schedules-${idx}-start_time"]`)?.value || '';
+    const endTime = row.querySelector(`[name="schedules-${idx}-end_time"]`)?.value || '';
+    const roomId = row.querySelector(`[name="schedules-${idx}-room"]`)?.value || '';
+    const teacherId = teacherSelect?.value || '';
+    const scheduleId = row.querySelector(`[name="schedules-${idx}-id"]`)?.value || '';
+
+    const alertDiv = row.querySelector('.row-conflict-alert');
+    if (!day || !startTime || !endTime || !roomId) { alertDiv?.classList.add('d-none'); return; }
+    if (startTime >= endTime) {
+      alertDiv.querySelector('.alert-text').innerText = "L'heure de fin doit être postérieure à l'heure de début.";
+      alertDiv.classList.remove('d-none'); return;
+    }
+
+    let url = `/schedule/check-conflict/?type=schedule&day=${day}&start_time=${startTime}&end_time=${endTime}&room_id=${roomId}`;
+    if (teacherId) url += `&teacher_id=${teacherId}`;
+    if (courseId) url += `&group_id=${courseId}`;
+    if (scheduleId) url += `&exclude_id=${scheduleId}`;
+
+    fetch(url).then(r => r.json()).then(data => {
+      if (data.has_conflict) {
+        alertDiv.querySelector('.alert-text').innerText = data.conflicts.map(c => c.message).join(' | ');
+        alertDiv.classList.remove('d-none');
+      } else {
+        alertDiv.classList.add('d-none');
+      }
+    }).catch(err => console.error(err));
+  }
+
+  function bindRowListeners(row) {
+    row.querySelectorAll('input, select').forEach(f => f.addEventListener('change', () => checkRowConflict(row)));
+    teacherSelect?.addEventListener('change', () => checkRowConflict(row));
+  }
+
+  function bindDeleteBtn(btn) {
+    btn.addEventListener('click', function () {
+      const row = btn.closest('.schedule-form-row');
+      const cb = row.querySelector('input[type="checkbox"][name$="-DELETE"]');
+      if (cb) {
+        cb.checked = true;
+        row.style.opacity = '0.4';
+        row.style.pointerEvents = 'none';
+      } else {
+        row.remove();
+        const rows = container.querySelectorAll('.schedule-form-row');
+        totalFormsInput.value = rows.length;
+        rows.forEach((r, i) => {
+          r.setAttribute('data-form-index', i);
+          r.querySelectorAll('input, select').forEach(el => {
+            el.id = el.id.replace(/schedules-\d+/, `schedules-${i}`);
+            el.name = el.name.replace(/schedules-\d+/, `schedules-${i}`);
+          });
+        });
+      }
+    });
+  }
+
+  addBtn.addEventListener('click', function () {
+    const count = parseInt(totalFormsInput.value);
+    const html = emptyTemplate.replace(/__prefix__/g, count).replace(/schedules-__prefix__/g, `schedules-${count}`);
+    const div = document.createElement('div');
+    div.innerHTML = html.trim();
+    const row = div.firstChild;
+    container.appendChild(row);
+    totalFormsInput.value = count + 1;
+    bindDeleteBtn(row.querySelector('.remove-schedule-btn'));
+    bindRowListeners(row);
+  });
+
+  container.querySelectorAll('.schedule-form-row').forEach(row => {
+    const btn = row.querySelector('.remove-schedule-btn');
+    if (btn) bindDeleteBtn(btn);
+    bindRowListeners(row);
+    checkRowConflict(row);
+  });
+});
+</script>
+{% endblock %}

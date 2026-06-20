@@ -1,0 +1,247 @@
+{% extends 'core/base.html' %}
+{% block title %}Calcul de paie — Centre Tonaroz{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 class="page-title">
+    <i class="bi bi-calculator-fill me-2" style="color:var(--primary);"></i>Calcul de paie
+  </h1>
+  <p class="page-subtitle">Calculateur dynamique de rémunération des professeurs</p>
+</div>
+
+<div class="row g-4">
+
+  <!-- Form panel -->
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header d-flex align-items-center gap-2">
+        <i class="bi bi-sliders" style="color:var(--primary);font-size:16px;"></i>
+        <span class="fw-600">Paramètres du calcul</span>
+      </div>
+      <div class="card-body">
+        <form method="post" class="d-flex flex-column gap-3">
+          {% csrf_token %}
+
+          <div>
+            <label class="form-label">Professeur</label>
+            <select name="teacher_id" class="form-select" required>
+              <option value="">— Sélectionner —</option>
+              {% for t in teacher_qs %}
+                <option value="{{ t.id }}" {% if result and result.teacher.id == t.id %}selected{% endif %}>
+                  {{ t.name }}
+                  ({% if t.payment_method == 'PERCENTAGE' %}{{ t.payment_percentage|floatformat:0 }}%{% elif t.payment_method == 'SESSION' %}{{ t.session_rate|floatformat:0 }} DH/sess{% else %}{{ t.hourly_rate|floatformat:0 }} DH/h{% endif %})
+                </option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div>
+            <label class="form-label">Date de début</label>
+            <input type="date" name="start_date" class="form-control" value="{{ request.POST.start_date }}" required>
+          </div>
+          <div>
+            <label class="form-label">Date de fin</label>
+            <input type="date" name="end_date" class="form-control" value="{{ request.POST.end_date }}" required>
+          </div>
+
+          <script>
+            const startInput = document.querySelector('input[name="start_date"]');
+            const endInput = document.querySelector('input[name="end_date"]');
+
+            if (!startInput.value) {
+              const now = new Date();
+              const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+              const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+              startInput.value = firstDay.toISOString().split('T')[0];
+              endInput.value = lastDay.toISOString().split('T')[0];
+            }
+          </script>
+
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-cpu"></i> Calculer la rémunération
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results panel -->
+  <div class="col-lg-8">
+    {% if result %}
+      <!-- Result header -->
+      <div class="card mb-4">
+        <div class="card-header d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center gap-2">
+            <div class="stat-card-icon" style="width:28px;height:28px;font-size:13px;background:#d1fae5;">
+              <i class="bi bi-wallet2" style="color:#10b981;"></i>
+            </div>
+            <span class="fw-600">{{ result.teacher.name }}</span>
+          </div>
+          <span class="badge badge-primary" style="font-size:12px;">
+            {% if result.payment_method == 'PERCENTAGE' %}Part {{ result.payment_percentage|floatformat:1 }}%{% elif result.payment_method == 'SESSION' %}{{ result.session_rate|floatformat:2 }} DH/session{% else %}{{ result.hourly_rate|floatformat:2 }} DH/h{% endif %}
+          </span>
+        </div>
+      </div>
+
+      <!-- KPI cards -->
+      {% if result.payment_method == 'PERCENTAGE' %}
+        <div class="row g-3 mb-4">
+          <div class="col-md-3">
+            <div class="stat-card">
+              <div class="stat-card-label">CA Réel collecté</div>
+              <div class="stat-card-value" style="font-size:18px;color:var(--primary);">{{ result.gains_actual|floatformat:2 }} DH</div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="stat-card">
+              <div class="stat-card-label">Base prof (régulière)</div>
+              <div class="stat-card-value" style="font-size:18px;color:var(--info);">{{ result.salary_regular|floatformat:2 }} DH</div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="stat-card">
+              <div class="stat-card-label">Part inscriptions tardives</div>
+              <div class="stat-card-value" style="font-size:18px;color:var(--warning);">{{ result.salary_late|floatformat:2 }} DH</div>
+            </div>
+          </div>
+          <div class="col-md-3">
+            <div class="stat-card" style="background:linear-gradient(135deg, #a7f3d0 0%, #6ee7b7 100%); border-color:#6ee7b7; box-shadow: 0 4px 15px rgba(167,243,208,0.5);">
+              <div class="stat-card-label" style="color:#065f46;">Net à payer (réel)</div>
+              <div class="stat-card-value" style="font-size:18px; color:#064e3b; font-weight:700;">{{ result.salary_taught|floatformat:2 }} DH</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Course breakdown -->
+        <div class="card mb-4">
+          <div class="card-header fw-600">
+            <i class="bi bi-graph-up-arrow me-1"></i>Détail par groupe ({{ result.courses_breakdown|length }})
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Groupe</th><th>Matière</th><th class="text-center">Élèves</th>
+                  <th class="text-end">Prix/mois</th><th class="text-end">CA Théorique</th>
+                  <th class="text-end">CA Réel</th><th class="text-end">Part rég.</th><th class="text-end">Part tardive</th><th class="text-end">Total prof</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in result.courses_breakdown %}
+                  <tr>
+                    <td><strong><a href="{% url 'core:group_detail' item.course.id %}" class="text-decoration-none">{{ item.course.name }}</a></strong></td>
+                    <td>
+                      {{ item.course.subject }}
+                      {% if item.course.level %}
+                        <a href="{% url 'core:level_detail' item.course.level.id %}" class="text-decoration-none">
+                          <span class="badge badge-secondary"><i class="bi bi-layers"></i> {{ item.course.level.name }}</span>
+                        </a>
+                      {% endif %}
+                    </td>
+                    <td class="text-center">{{ item.student_count }}</td>
+                    <td class="text-end">{{ item.course.monthly_price|floatformat:2 }} DH</td>
+                    <td class="text-end">{{ item.gains_theoretical|floatformat:2 }} DH</td>
+                    <td class="text-end" style="color:var(--success);">{{ item.gains_actual|floatformat:2 }} DH</td>
+                    <td class="text-end" style="color:var(--info);">{{ item.share_regular|floatformat:2 }} DH</td>
+                    <td class="text-end" style="color:var(--warning);">{{ item.share_late|floatformat:2 }} DH</td>
+                    <td class="text-end fw-600" style="color:var(--success);">{{ item.share_actual|floatformat:2 }} DH</td>
+                  </tr>
+                {% endfor %}
+                <tr style="background:var(--surface-alt);">
+                  <td colspan="4"><strong>Total</strong></td>
+                  <td class="text-end fw-600">{{ result.gains_theoretical|floatformat:2 }} DH</td>
+                  <td class="text-end fw-600" style="color:var(--success);">{{ result.gains_actual|floatformat:2 }} DH</td>
+                  <td class="text-end fw-600" style="color:var(--info);">{{ result.salary_regular|floatformat:2 }} DH</td>
+                  <td class="text-end fw-600" style="color:var(--warning);">{{ result.salary_late|floatformat:2 }} DH</td>
+                  <td class="text-end fw-600" style="color:var(--success);font-size:15px;">{{ result.salary_taught|floatformat:2 }} DH</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% elif result.payment_method == 'SESSION' %}
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <div class="stat-card">
+              <div class="stat-card-label">Sessions enseignées</div>
+              <div class="stat-card-value" style="color:var(--primary);">{{ result.taught_sessions }}<span style="font-size:14px;font-weight:400;"> sess</span></div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="stat-card">
+              <div class="stat-card-label">Tarif par session</div>
+              <div class="stat-card-value" style="color:var(--info);">{{ result.session_rate|floatformat:2 }}<span style="font-size:14px;font-weight:400;"> DH</span></div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="stat-card" style="background:linear-gradient(135deg, #a7f3d0 0%, #6ee7b7 100%); border-color:#6ee7b7; box-shadow: 0 4px 15px rgba(167,243,208,0.5);">
+              <div class="stat-card-label" style="color:#065f46;">Net à payer</div>
+              <div class="stat-card-value" style="color:#064e3b; font-weight:700;">{{ result.salary_taught|floatformat:2 }}<span style="font-size:14px;font-weight:400;color:#065f46;"> DH</span></div>
+            </div>
+          </div>
+        </div>
+      {% else %}
+        <div class="row g-3 mb-4">
+          <div class="col-md-4">
+            <div class="stat-card">
+              <div class="stat-card-label">Heures travaillées</div>
+              <div class="stat-card-value" style="color:var(--primary);">{{ result.taught_hours|floatformat:1 }}<span style="font-size:14px;font-weight:400;"> h</span></div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="stat-card">
+              <div class="stat-card-label">Taux horaire</div>
+              <div class="stat-card-value" style="color:var(--info);">{{ result.hourly_rate|floatformat:2 }}<span style="font-size:14px;font-weight:400;"> DH</span></div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="stat-card" style="background:linear-gradient(135deg, #a7f3d0 0%, #6ee7b7 100%); border-color:#6ee7b7; box-shadow: 0 4px 15px rgba(167,243,208,0.5);">
+              <div class="stat-card-label" style="color:#065f46;">Net à payer</div>
+              <div class="stat-card-value" style="color:#064e3b; font-weight:700;">{{ result.salary_taught|floatformat:2 }}<span style="font-size:14px;font-weight:400;color:#065f46;"> DH</span></div>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      <!-- Sessions table -->
+      <div class="card">
+        <div class="card-header fw-600">
+          <i class="bi bi-clock-history me-1"></i>Sessions enseignées ({{ result.sessions|length }})
+        </div>
+        <div class="table-responsive">
+          <table class="table table-hover mb-0">
+            <thead><tr><th>Date</th><th>Groupe</th><th>Horaire</th><th>Salle</th><th class="text-end">Heures</th></tr></thead>
+            <tbody>
+              {% for item in result.sessions %}
+                <tr>
+                  <td>{{ item.session.date|date:"d/m/Y" }}</td>
+                  <td><strong><a href="{% url 'core:group_detail' item.session.group.id %}" class="text-decoration-none">{{ item.session.group.name }}</a></strong></td>
+                  <td><span class="badge badge-secondary">{{ item.session.start_time|time:"H:i" }} – {{ item.session.end_time|time:"H:i" }}</span></td>
+                  <td>{{ item.session.room.name }}</td>
+                  <td class="text-end fw-600">{{ item.hours|floatformat:1 }}h</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="5" class="text-center py-4 text-muted">Aucune séance validée dans cette période</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    {% else %}
+      <div class="card">
+        <div class="card-body empty-state">
+          <div class="empty-state-icon"><i class="bi bi-calculator"></i></div>
+          <div class="empty-state-title">Résultats ici</div>
+          <div class="empty-state-text">Remplissez les paramètres à gauche pour calculer la rémunération.</div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<style>.fw-600 { font-weight: 600; }</style>
+
+{% endblock %}

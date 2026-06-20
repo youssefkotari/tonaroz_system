@@ -1,0 +1,136 @@
+{% extends 'core/base.html' %}
+{% block title %}Générer les sessions — Centre Tonaroz{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between">
+  <div>
+    <h1 class="page-title">
+      <i class="bi bi-gear-fill me-2" style="color:var(--primary);"></i>Générer les sessions
+    </h1>
+    <p class="page-subtitle">Créez automatiquement les sessions à partir des horaires des groupes</p>
+  </div>
+  <a href="{% url 'core:sessions_schedule' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-calendar3"></i> Voir le planning
+  </a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+
+    {% if errors %}
+      <div class="alert alert-danger mb-4">
+        {% for error in errors %}
+          <div><i class="bi bi-exclamation-circle-fill me-1"></i>{{ error }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% if summary %}
+      <!-- Result card -->
+      <div class="card mb-4" style="border-color:#a7f3d0;">
+        <div class="card-header d-flex align-items-center gap-2" style="background:#d1fae5;">
+          <i class="bi bi-check-circle-fill" style="color:#10b981;font-size:16px;"></i>
+          <span class="fw-600" style="color:#065f46;">Génération terminée</span>
+        </div>
+        <div class="card-body">
+          <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+              <div class="stat-card text-center">
+                <div class="stat-card-value" style="color:var(--success);">{{ summary.created }}</div>
+                <div class="stat-card-label">Créées</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="stat-card text-center">
+                <div class="stat-card-value" style="color:var(--warning);">{{ summary.updated }}</div>
+                <div class="stat-card-label">Mises à jour</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="stat-card text-center">
+                <div class="stat-card-value" style="color:var(--danger);">{{ summary.deleted }}</div>
+                <div class="stat-card-label">Supprimées</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="stat-card text-center">
+                <div class="stat-card-value" style="color:var(--text-muted);">{{ summary.skipped }}</div>
+                <div class="stat-card-label">Ignorées</div>
+              </div>
+            </div>
+          </div>
+
+          {% if summary.errors %}
+            <div class="alert alert-warning" style="font-size:13px;">
+              <div class="fw-600 mb-2"><i class="bi bi-exclamation-triangle-fill me-1"></i>Erreurs rencontrées :</div>
+              <ul class="mb-0 ps-3">
+                {% for err in summary.errors %}<li>{{ err }}</li>{% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+
+          <a href="{% url 'core:sessions_schedule' %}" class="btn btn-primary">
+            <i class="bi bi-calendar3"></i> Voir le planning
+          </a>
+        </div>
+      </div>
+
+    {% else %}
+      <!-- Generate form card -->
+      <div class="card">
+        <div class="card-header d-flex align-items-center gap-2">
+          <i class="bi bi-play-circle" style="color:var(--primary);font-size:16px;"></i>
+          <span class="fw-600">Paramètres de génération</span>
+        </div>
+        <div class="card-body">
+          <form method="post" class="d-flex flex-column gap-4">
+            {% csrf_token %}
+
+            <div>
+              <label for="weeks" class="form-label">
+                <i class="bi bi-calendar-range me-1" style="color:var(--primary);"></i>
+                Nombre de semaines à générer
+              </label>
+              <input type="number" id="weeks" name="weeks" class="form-control"
+                     value="4" min="1" max="26" style="max-width:180px;">
+              <div class="form-text">À partir d'aujourd'hui</div>
+            </div>
+
+            <div class="p-3 rounded" style="background:var(--surface-alt);">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="force" name="force">
+                <label class="form-check-label" for="force">
+                  <strong>Forcer la mise à jour</strong> des sessions existantes si l'horaire ou la salle a changé
+                </label>
+              </div>
+            </div>
+
+            <!-- Info box -->
+            <div class="alert alert-info d-flex gap-3" style="font-size:13px;">
+              <i class="bi bi-info-circle-fill mt-1 flex-shrink-0" style="font-size:16px;"></i>
+              <div>
+                <strong>Qu'est-ce que cela fait ?</strong>
+                <ul class="mb-0 mt-2 ps-3">
+                  <li>Crée les sessions manquantes selon les horaires des groupes</li>
+                  <li>Respecte les exceptions (annulations, changements d'horaire/salle)</li>
+                  <li>Avec "Forcer" : met à jour les sessions existantes si les paramètres ont changé</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="d-flex gap-3 pt-2" style="border-top:1px solid var(--border);">
+              <button class="btn btn-success px-4" type="submit">
+                <i class="bi bi-play-fill"></i> Générer
+              </button>
+              <a href="{% url 'core:sessions_schedule' %}" class="btn btn-outline-secondary">Annuler</a>
+            </div>
+          </form>
+        </div>
+      </div>
+    {% endif %}
+
+  </div>
+</div>
+
+<style>.fw-600 { font-weight: 600; }</style>
+{% endblock %}

@@ -1,0 +1,183 @@
+{% extends 'core/base.html' %}
+{% block title %}Notifications d'absence WhatsApp — Centre Tonaroz{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between">
+  <div>
+    <h1 class="page-title">
+      <i class="bi bi-whatsapp me-2" style="color:#25d366;"></i>Notifications d'absence
+    </h1>
+    <p class="page-subtitle">Informez les parents des absences de leurs enfants via WhatsApp</p>
+  </div>
+</div>
+
+<div class="row g-4 mb-4">
+  <!-- Date picker -->
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+          <div class="col-md-8">
+            <label class="form-label">Date</label>
+            <input type="date" class="form-control" name="date" value="{{ target_date|date:'Y-m-d' }}">
+          </div>
+          <div class="col-md-4">
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="bi bi-search"></i> Rechercher
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPI -->
+  <div class="col-md-5">
+    <div class="stat-card h-100">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-card-label">Total absences</div>
+          <div class="stat-card-value" style="color:var(--warning);">{{ total_absences }}</div>
+          <small class="text-muted">{{ target_date|date:"d/m/Y" }}</small>
+        </div>
+        <div class="stat-card-icon" style="background:#fef3c7;">
+          <i class="bi bi-person-x-fill" style="color:#d97706;"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Absences card -->
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center gap-2">
+      <span class="stat-card-icon" style="width:26px;height:26px;font-size:12px;background:#fef3c7;">
+        <i class="bi bi-person-x-fill" style="color:#d97706;"></i>
+      </span>
+      <span class="fw-600">Absences du {{ target_date|date:"d/m/Y" }}</span>
+    </div>
+    {% if absence_contacts|length > 1 %}
+      <button type="button" class="btn btn-sm btn-success" id="send-all-btn"
+              style="background:#25d366;border-color:#25d366;">
+        <i class="bi bi-whatsapp"></i> Notifier tous ({{ absence_contacts|length }})
+      </button>
+    {% endif %}
+  </div>
+
+  {% if absence_contacts %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>#</th><th>Élève</th><th>Parent</th><th>Cours</th><th>Heure</th><th>Salle</th><th>Message</th><th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for contact in absence_contacts %}
+            <tr>
+              <td class="text-muted">{{ forloop.counter }}</td>
+              <td><strong>{{ contact.student_name }}</strong></td>
+              <td>{{ contact.name }}</td>
+              <td>
+                <span class="badge badge-info">{{ contact.course_name }}</span>
+                {% if contact.teacher %}<br><small class="text-muted">{{ contact.teacher }}</small>{% endif %}
+              </td>
+              <td>{{ contact.time|default:"—" }}</td>
+              <td>{{ contact.room|default:"—" }}</td>
+              <td>
+                <button class="btn btn-sm btn-outline-secondary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#absenceModal{{ forloop.counter }}">
+                  <i class="bi bi-eye"></i> Voir
+                </button>
+              </td>
+              <td>
+                <a href="{{ contact.whatsapp_link }}" target="_blank"
+                   class="btn btn-sm btn-success whatsapp-link"
+                   style="background:#25d366;border-color:#25d366;">
+                  <i class="bi bi-whatsapp"></i> Notifier
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="card-body empty-state">
+      <div class="empty-state-icon" style="color:var(--success);opacity:1;"><i class="bi bi-check-circle-fill"></i></div>
+      <div class="empty-state-title">Aucune absence enregistrée</div>
+      <div class="empty-state-text">Tous les élèves étaient présents pour cette date.</div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Modals -->
+{% for contact in absence_contacts %}
+  <div class="modal fade" id="absenceModal{{ forloop.counter }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-whatsapp text-success me-2"></i>Notification — {{ contact.name }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-2 mb-3">
+            <div class="col-6"><div class="info-label">Élève</div><div class="info-value">{{ contact.student_name }}</div></div>
+            <div class="col-6"><div class="info-label">Parent</div><div class="info-value">{{ contact.name }}</div></div>
+            <div class="col-6"><div class="info-label">Téléphone</div><div class="info-value">{{ contact.phone }}</div></div>
+            {% if contact.course_name %}<div class="col-6"><div class="info-label">Cours</div><div class="info-value">{{ contact.course_name }}</div></div>{% endif %}
+            {% if contact.time %}<div class="col-6"><div class="info-label">Heure</div><div class="info-value">{{ contact.time }}</div></div>{% endif %}
+            {% if contact.room %}<div class="col-6"><div class="info-label">Salle</div><div class="info-value">{{ contact.room }}</div></div>{% endif %}
+          </div>
+          <hr>
+          <div class="form-label mb-2">Message WhatsApp :</div>
+          <div class="p-3 rounded" style="background:var(--surface-alt);white-space:pre-wrap;font-size:13px;border:1px solid var(--border);">{{ contact.message }}</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
+          <a href="{{ contact.whatsapp_link }}" target="_blank" class="btn btn-success" data-bs-dismiss="modal"
+             style="background:#25d366;border-color:#25d366;">
+            <i class="bi bi-whatsapp"></i> Envoyer
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+
+<style>
+  .fw-600 { font-weight: 600; }
+  .info-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 2px; }
+  .info-value { font-size: 14px; font-weight: 500; }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+  $('#send-all-btn').on('click', function() {
+    const total = {{ absence_contacts|length }};
+    if (!confirm(`Envoyer ${total} notifications d'absence via WhatsApp?`)) return;
+    const links = document.querySelectorAll('.whatsapp-link');
+    let count = 0;
+    const $btn = $(this);
+    links.forEach((link, i) => {
+      setTimeout(() => {
+        window.open(link.href, '_blank');
+        count++;
+        $btn.html(`<i class="bi bi-hourglass-split"></i> ${count}/${total}...`);
+        if (count === total) {
+          setTimeout(() => $btn.html(`<i class="bi bi-check-circle"></i> Terminé!`), 500);
+        }
+      }, i * 500);
+    });
+  });
+
+  $('.whatsapp-link').on('click', function() {
+    $(this).css({ background: '#128C7E', borderColor: '#128C7E' }).html('<i class="bi bi-check"></i> Envoyé');
+  });
+});
+</script>
+{% endblock %}

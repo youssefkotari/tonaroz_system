@@ -1,0 +1,15 @@
+{% extends "admin/base.html" %}
+{% load i18n static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | 🎓 Admin Centre Tonaroz{% endblock %}
+
+{% block extrastyle %}
+    {{ block.super }}
+    {# ── Centre Tonaroz Custom Admin Styles ── #}
+    <link href="{% static 'admin/css/school_admin.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <meta name="description" content="Centre Tonaroz – Tableau de bord administratif">
+{% endblock %}

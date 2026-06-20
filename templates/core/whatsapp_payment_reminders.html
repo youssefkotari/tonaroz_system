@@ -1,0 +1,216 @@
+{% extends 'core/base.html' %}
+{% block title %}Rappels de paiement WhatsApp — Centre Tonaroz{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between">
+  <div>
+    <h1 class="page-title">
+      <i class="bi bi-whatsapp me-2" style="color:#25d366;"></i>Rappels de paiement
+    </h1>
+    <p class="page-subtitle">Envoyez des rappels aux parents d'élèves impayés via WhatsApp</p>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="row g-4 mb-4">
+  <div class="col-md-4">
+    <div class="stat-card">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-card-label">Total impayés</div>
+          <div class="stat-card-value" style="color:var(--danger);">{{ total_unpaid }}</div>
+        </div>
+        <div class="stat-card-icon" style="background:#fee2e2;">
+          <i class="bi bi-exclamation-circle-fill" style="color:#ef4444;"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-card-label">Mois en cours</div>
+          <div class="stat-card-value" style="font-size:18px;margin-top:4px;">{{ current_month|date:"F Y" }}</div>
+        </div>
+        <div class="stat-card-icon" style="background:var(--primary-light);">
+          <i class="bi bi-calendar-month" style="color:var(--primary);"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card d-flex align-items-center justify-content-between">
+      <div>
+        <div class="stat-card-label">Action groupée</div>
+        <div class="mt-2">
+          <button class="btn btn-success" id="open-all-btn" type="button">
+            <i class="bi bi-whatsapp"></i> Ouvrir tous
+          </button>
+        </div>
+      </div>
+      <div class="stat-card-icon" style="background:#d1fae5;">
+        <i class="bi bi-send-fill" style="color:#10b981;"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Impayés table -->
+<div class="card">
+  <div class="card-header d-flex align-items-center gap-2">
+    <span class="stat-card-icon" style="width:26px;height:26px;font-size:12px;background:#fee2e2;">
+      <i class="bi bi-exclamation-triangle-fill" style="color:#ef4444;"></i>
+    </span>
+    <span class="fw-600">Liste des impayés</span>
+    {% if unpaid_contacts %}
+      <span class="badge badge-danger ms-1">{{ total_unpaid }}</span>
+    {% endif %}
+  </div>
+
+  {% if unpaid_contacts %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Élève</th>
+            <th>Parent</th>
+            <th>Téléphone</th>
+            <th class="text-end">Montant dû</th>
+            <th>Message</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for contact in unpaid_contacts %}
+            <tr>
+              <td class="text-muted">{{ forloop.counter }}</td>
+              <td>
+                <a href="{% url 'core:student_page' contact.student.id %}" class="fw-600 text-decoration-none">
+                  {{ contact.student_name }}
+                </a>
+              </td>
+              <td>{{ contact.name }}</td>
+              <td>
+                <span class="badge badge-secondary">
+                  <i class="bi bi-phone"></i> {{ contact.phone }}
+                </span>
+              </td>
+              <td class="text-end">
+                <strong style="color:var(--danger);">{{ contact.due_amount }} DH</strong>
+              </td>
+              <td>
+                <button class="btn btn-sm btn-outline-secondary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#messageModal{{ forloop.counter }}">
+                  <i class="bi bi-eye"></i> Voir
+                </button>
+              </td>
+              <td>
+                <a href="{{ contact.whatsapp_link }}" target="_blank"
+                   class="btn btn-sm btn-success whatsapp-link"
+                   data-student="{{ contact.student_name }}"
+                   style="background:#25d366;border-color:#25d366;">
+                  <i class="bi bi-whatsapp"></i> Envoyer
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="card-body empty-state">
+      <div class="empty-state-icon" style="color:var(--success);opacity:1;"><i class="bi bi-check-circle-fill"></i></div>
+      <div class="empty-state-title">Aucun impayé ce mois-ci !</div>
+      <div class="empty-state-text">Tous les parents sont à jour pour le mois en cours.</div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- Message modals -->
+{% for contact in unpaid_contacts %}
+  <div class="modal fade" id="messageModal{{ forloop.counter }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-whatsapp text-success me-2"></i>Message — {{ contact.name }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <div class="info-label">Élève</div>
+              <div class="info-value">{{ contact.student_name }}</div>
+            </div>
+            <div class="col-6">
+              <div class="info-label">Montant dû</div>
+              <div class="info-value" style="color:var(--danger);">{{ contact.due_amount }} DH</div>
+            </div>
+            <div class="col-6">
+              <div class="info-label">Parent</div>
+              <div class="info-value">{{ contact.name }}</div>
+            </div>
+            <div class="col-6">
+              <div class="info-label">Téléphone</div>
+              <div class="info-value">{{ contact.phone }}</div>
+            </div>
+          </div>
+          <hr>
+          <div class="form-label mb-2">Message WhatsApp :</div>
+          <div class="p-3 rounded" style="background:var(--surface-alt);white-space:pre-wrap;font-size:13px;border:1px solid var(--border);">{{ contact.message }}</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
+          <a href="{{ contact.whatsapp_link }}" target="_blank" class="btn btn-success" data-bs-dismiss="modal"
+             style="background:#25d366;border-color:#25d366;">
+            <i class="bi bi-whatsapp"></i> Envoyer via WhatsApp
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+
+<style>
+  .fw-600 { font-weight: 600; }
+  .info-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 2px; }
+  .info-value { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function () {
+  $('#open-all-btn').on('click', function () {
+    const total = {{ total_unpaid|default:0 }};
+    if (total === 0) { alert('Aucun paiement en retard !'); return; }
+    if (!confirm(`Attention : Cette action va tenter d'ouvrir ${total} onglets WhatsApp. Assurez-vous d'autoriser les popups dans votre navigateur.\n\nVoulez-vous continuer ?`)) return;
+
+    const $btn = $(this);
+    const orig = $btn.html();
+    const links = document.querySelectorAll('.whatsapp-link');
+    let count = 0;
+    $btn.prop('disabled', true);
+    links.forEach((link, i) => {
+      setTimeout(() => {
+        window.open(link.href, '_blank');
+        count++;
+        $btn.html(`<i class="bi bi-hourglass-split"></i> ${count}/${total}...`);
+        if (count === total) {
+          setTimeout(() => {
+            $btn.html('<i class="bi bi-check-circle"></i> Terminé !');
+            setTimeout(() => $btn.html(orig).prop('disabled', false), 2000);
+          }, 500);
+        }
+      }, i * 1000);
+    });
+  });
+
+  $('.whatsapp-link').on('click', function () {
+    $(this).css({ background: '#128C7E', borderColor: '#128C7E' }).html('<i class="bi bi-check"></i> Envoyé');
+  });
+});
+</script>
+{% endblock %}

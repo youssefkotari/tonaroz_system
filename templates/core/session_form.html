@@ -1,0 +1,111 @@
+{% extends 'core/base.html' %}
+{% block title %}Formulaire de session — Centre Tonaroz{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between">
+  <div>
+    <h1 class="page-title">
+      <i class="bi bi-calendar-event me-2" style="color:var(--primary);"></i>{{ action }} une session
+    </h1>
+  </div>
+  <a href="{% url 'core:sessions_schedule' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Annuler
+  </a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-body">
+        <form method="post" id="sessionForm">
+          {% csrf_token %}
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+          {% endif %}
+
+          <div class="mb-3">
+            {{ form.group.label_tag }}
+            {{ form.group }}
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">{{ form.date.label_tag }}{{ form.date }}</div>
+            <div class="col-md-3">{{ form.start_time.label_tag }}{{ form.start_time }}</div>
+            <div class="col-md-3">{{ form.end_time.label_tag }}{{ form.end_time }}</div>
+          </div>
+
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">{{ form.room.label_tag }}{{ form.room }}</div>
+            <div class="col-md-6">{{ form.status.label_tag }}{{ form.status }}</div>
+          </div>
+
+          <div class="mb-4">{{ form.notes.label_tag }}{{ form.notes }}</div>
+
+          <!-- Conflict alert -->
+          <div id="conflictAlertContainer" class="mb-3 d-none">
+            <div class="alert alert-warning d-flex align-items-start gap-2" style="font-size:13.5px;">
+              <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+              <div id="conflictAlertMessage"></div>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end gap-2 pt-2" style="border-top:1px solid var(--border);">
+            <a href="{% url 'core:sessions_schedule' %}" class="btn btn-outline-secondary">Annuler</a>
+            <button class="btn btn-primary px-4" type="submit">
+              <i class="bi bi-check-lg"></i> {{ action }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  $(document).ready(function() {
+    const groupField = $('#id_group');
+    const dateField = $('#id_date');
+    const startTimeField = $('#id_start_time');
+    const endTimeField = $('#id_end_time');
+    const roomField = $('#id_room');
+    const alertContainer = $('#conflictAlertContainer');
+    const alertMessage = $('#conflictAlertMessage');
+    const excludeId = "{% if session %}{{ session.id }}{% endif %}";
+
+    function performConflictCheck() {
+      const roomId = roomField.val();
+      const dateVal = dateField.val();
+      const startTime = startTimeField.val();
+      const endTime = endTimeField.val();
+      const groupId = groupField.val();
+
+      if (!roomId || !dateVal || !startTime || !endTime) { alertContainer.addClass('d-none'); return; }
+      if (startTime >= endTime) {
+        alertMessage.html("L'heure de fin doit être postérieure à l'heure de début.");
+        alertContainer.removeClass('d-none'); return;
+      }
+
+      let url = `/schedule/check-conflict/?type=session&room_id=${roomId}&date=${dateVal}&start_time=${startTime}&end_time=${endTime}`;
+      if (groupId) url += `&group_id=${groupId}`;
+      if (excludeId) url += `&exclude_id=${excludeId}`;
+
+      fetch(url)
+        .then(r => r.json())
+        .then(data => {
+          if (data.has_conflict) {
+            let html = '<ul class="mb-0 ps-3">';
+            data.conflicts.forEach(c => { html += `<li><strong>${c.type}:</strong> ${c.message}</li>`; });
+            html += '</ul>';
+            alertMessage.html(html);
+            alertContainer.removeClass('d-none');
+          } else {
+            alertContainer.addClass('d-none');
+          }
+        }).catch(err => console.error(err));
+    }
+
+    [roomField, dateField, startTimeField, endTimeField, groupField].forEach(f => f.on('change', performConflictCheck));
+    if (excludeId) performConflictCheck();
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,167 @@
+{% extends 'core/base.html' %}
+{% block title %}Présences — {{ session.group.name }}{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between">
+  <div>
+    <h1 class="page-title">
+      <i class="bi bi-clipboard-check me-2" style="color:var(--primary);"></i>Feuille de présence
+    </h1>
+    <p class="page-subtitle">{{ session.group.name }} — {{ session.date|date:"l d F Y" }}</p>
+  </div>
+  <a href="{% url 'core:sessions_today' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Retour
+  </a>
+</div>
+
+<!-- Session info -->
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-auto">
+        <div class="info-label">Groupe</div>
+        <div class="info-value fw-600">{{ session.group.name }}</div>
+      </div>
+      <div class="col-auto">
+        <div class="info-label">Date</div>
+        <div class="info-value">{{ session.date|date:"d/m/Y" }}</div>
+      </div>
+      <div class="col-auto">
+        <div class="info-label">Horaire</div>
+        <div class="info-value" style="color:var(--primary);">
+          {{ session.start_time|time:"H:i" }} – {{ session.end_time|time:"H:i" }}
+        </div>
+      </div>
+      <div class="col-auto">
+        <div class="info-label">Salle</div>
+        <div class="info-value">
+          <span class="badge badge-secondary"><i class="bi bi-door-open"></i> {{ session.room.name }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Attendance form -->
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span class="fw-600"><i class="bi bi-people me-2"></i>Élèves ({{ students_list|length }})</span>
+    <div class="d-flex gap-2">
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="selectAll">
+        <i class="bi bi-check-all"></i> Tous présents
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="clearAll">
+        <i class="bi bi-x"></i> Effacer
+      </button>
+    </div>
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th style="width:60px;text-align:center;">Présent</th>
+            <th>Élève</th>
+            <th>Contact parent</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in students_list %}
+            <tr class="attendance-row {% if item.checked %}table-success-subtle{% endif %}"
+                onclick="toggleAttendance(this)"
+                style="cursor:pointer;">
+              <td style="text-align:center;">
+                <input type="checkbox"
+                       name="present_{{ item.student.id }}"
+                       {% if item.checked %}checked{% endif %}
+                       class="form-check-input attendance-cb"
+                       style="width:18px;height:18px;">
+              </td>
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="mini-avatar">{{ item.student.name|slice:":1"|upper }}</div>
+                  <strong>{{ item.student.name }}</strong>
+                </div>
+              </td>
+              <td class="text-muted" style="font-size:13px;">
+                <i class="bi bi-telephone"></i> {{ item.student.parent_contact|default:"—" }}
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="3" class="text-center py-5 text-muted">Aucun élève inscrit dans ce groupe</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="card-footer d-flex gap-3">
+      <button type="submit" class="btn btn-success">
+        <i class="bi bi-check-circle"></i> Enregistrer la présence
+      </button>
+      <a href="{% url 'core:sessions_today' %}" class="btn btn-outline-secondary">Annuler</a>
+      <div class="ms-auto text-muted" style="font-size:13px;align-self:center;">
+        <span id="presentCount">0</span> / {{ students_list|length }} présents
+      </div>
+    </div>
+  </form>
+</div>
+
+<style>
+  .fw-600 { font-weight: 600; }
+  .info-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 2px; }
+  .info-value { font-size: 14px; font-weight: 500; }
+  .mini-avatar {
+    width: 28px; height: 28px; border-radius: 7px;
+    background: var(--primary-light); color: var(--primary);
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .table-success-subtle td { background: #f0fdf4 !important; }
+</style>
+
+<script>
+  function toggleAttendance(row) {
+    const cb = row.querySelector('.attendance-cb');
+    if (event.target === cb) return; // let native checkbox handle it
+    cb.checked = !cb.checked;
+    updateRow(row, cb.checked);
+    updateCount();
+  }
+
+  function updateRow(row, checked) {
+    row.classList.toggle('table-success-subtle', checked);
+  }
+
+  function updateCount() {
+    const total = document.querySelectorAll('.attendance-cb:checked').length;
+    document.getElementById('presentCount').textContent = total;
+  }
+
+  document.getElementById('selectAll').addEventListener('click', () => {
+    document.querySelectorAll('.attendance-cb').forEach(cb => {
+      cb.checked = true;
+      updateRow(cb.closest('tr'), true);
+    });
+    updateCount();
+  });
+
+  document.getElementById('clearAll').addEventListener('click', () => {
+    document.querySelectorAll('.attendance-cb').forEach(cb => {
+      cb.checked = false;
+      updateRow(cb.closest('tr'), false);
+    });
+    updateCount();
+  });
+
+  document.querySelectorAll('.attendance-cb').forEach(cb => {
+    cb.addEventListener('change', function () {
+      updateRow(this.closest('tr'), this.checked);
+      updateCount();
+    });
+  });
+
+  updateCount();
+</script>
+{% endblock %}

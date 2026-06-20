@@ -1,0 +1,558 @@
+{% extends 'core/base.html' %}
+{% block title %}{{ student.name }} — Profil élève{% endblock %}
+
+{% block extra_css %}
+{% load courses %}
+<style>
+  .avatar-circle {
+    width: 64px; height: 64px; border-radius: 16px;
+    background: var(--primary-light); color: var(--primary);
+    font-size: 26px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .info-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 2px; }
+  .info-value { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+  .fw-600 { font-weight: 600; }
+  .fw-700 { font-weight: 700; }
+  .modal-footer .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .spinner-border-sm { width: 1rem; height: 1rem; border-width: 0.15em; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── Profile header ─────────────────────────────────────────────── -->
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="row align-items-center g-4">
+      <div class="col-auto">
+        <div class="avatar-circle">{{ student.name|slice:":1"|upper }}</div>
+      </div>
+      <div class="col">
+        <h1 class="page-title mb-1">{{ student.name }}</h1>
+        <div class="d-flex flex-wrap gap-3 align-items-center">
+          <span class="text-muted" style="font-size:13.5px;">
+            <i class="bi bi-telephone me-1"></i>{{ student.parent_contact }}
+          </span>
+          {% if student.parent_name %}
+            <span class="text-muted" style="font-size:13.5px;">
+              <i class="bi bi-person me-1"></i>{{ student.parent_name }}
+            </span>
+          {% endif %}
+        </div>
+        <div class="mt-2 d-flex flex-wrap gap-2">
+          <span class="badge badge-primary"><i class="bi bi-book"></i> {{ total_enrolled }} groupe{{ total_enrolled|pluralize }}</span>
+          {% if student.level %}
+            <a href="{% url 'core:level_detail' student.level.id %}" class="text-decoration-none">
+              <span class="badge badge-secondary"><i class="bi bi-layers-fill"></i> {{ student.level.name }}</span>
+            </a>
+          {% endif %}
+          {% with status=payment_status.status %}
+            {% if status == 'OK' %}
+              <span class="badge badge-success"><i class="bi bi-check-circle-fill"></i> Payé</span>
+            {% elif status == 'PARTIAL' %}
+              <span class="badge badge-warning"><i class="bi bi-exclamation-circle-fill"></i> Partiel</span>
+            {% else %}
+              <span class="badge badge-danger"><i class="bi bi-x-circle-fill"></i> Impayé</span>
+            {% endif %}
+          {% endwith %}
+        </div>
+      </div>
+      <div class="col-auto d-flex gap-2">
+        <a href="{% url 'core:student_edit' student.id %}" class="btn btn-outline-primary">
+          <i class="bi bi-pencil"></i> Éditer
+        </a>
+        <a href="{% url 'core:payment_create' %}?student_id={{ student.id }}" class="btn btn-success">
+          <i class="bi bi-cash-coin"></i> Payer
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Quick stats ────────────────────────────────────────────────── -->
+<div class="row g-4 mb-4">
+  <div class="col-md-4">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <div class="stat-card-label">Assiduité (30 jours)</div>
+          <div class="stat-card-value">{{ attendance_rate }}<span style="font-size:16px;font-weight:500;color:var(--text-secondary);">%</span></div>
+          <small class="text-muted">{{ attended_classes }}/{{ total_classes }} cours</small>
+        </div>
+        <div class="stat-card-icon" style="background:{% if attendance_rate >= 80 %}#d1fae5{% elif attendance_rate >= 60 %}#fef3c7{% else %}#fee2e2{% endif %};">
+          <i class="bi bi-check-circle-fill" style="color:{% if attendance_rate >= 80 %}#10b981{% elif attendance_rate >= 60 %}#f59e0b{% else %}#ef4444{% endif %};"></i>
+        </div>
+      </div>
+      <div class="progress mt-3" style="height:4px;">
+        <div class="progress-bar {% if attendance_rate >= 80 %}bg-success{% elif attendance_rate >= 60 %}bg-warning{% else %}bg-danger{% endif %}" style="width:{{ attendance_rate }}%"></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <div class="stat-card-label">Paiement du mois</div>
+          <div class="stat-card-value" style="font-size:20px;">{{ payment_status.paid|floatformat:0 }} <span style="font-size:13px;font-weight:400;color:var(--text-muted);">/ {{ payment_status.required|floatformat:0 }} DH</span></div>
+          <small class="text-muted">Restant : <strong>{{ payment_status.remaining|floatformat:0 }} DH</strong></small>
+        </div>
+        <div class="stat-card-icon" style="background:#dbeafe;">
+          <i class="bi bi-cash-coin" style="color:#3b82f6;"></i>
+        </div>
+      </div>
+      <div class="progress mt-3" style="height:4px;">
+        <div class="progress-bar bg-info" style="width:{{ payment_status.percentage }}%"></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-center">
+        <div>
+          <div class="stat-card-label">Frais mensuels</div>
+          <div class="stat-card-value" style="font-size:20px;">{{ payment_status.required|floatformat:0 }}<span style="font-size:13px;font-weight:400;color:var(--text-muted);"> DH</span></div>
+          <div class="mt-1 d-flex flex-wrap gap-1">
+            {% for em in enrollments %}
+              <span class="badge badge-secondary">{{ em.course_group.monthly_price|floatformat:0 }} DH</span>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="stat-card-icon" style="background:var(--primary-light);">
+          <i class="bi bi-wallet2" style="color:var(--primary);"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Tabs ───────────────────────────────────────────────────────── -->
+<ul class="nav nav-tabs mb-4">
+  <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#enrollments"><i class="bi bi-book-half"></i> Cours ({{ total_enrolled }})</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#attendance"><i class="bi bi-calendar-check"></i> Assiduité</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#payments"><i class="bi bi-receipt"></i> Paiements</button></li>
+  <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#info"><i class="bi bi-info-circle"></i> Infos</button></li>
+</ul>
+
+<div class="tab-content">
+
+  <!-- Enrollments -->
+  <div class="tab-pane fade show active" id="enrollments">
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <span class="fw-600">Groupes inscrits</span>
+        <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#enrollmentModal">
+          <i class="bi bi-plus-lg"></i> Ajouter cours
+        </button>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Nom du cours</th>
+              <th>Matière</th>
+              <th>Niveau</th>
+              <th>Professeur</th>
+              <th>Horaire</th>
+              <th>Salle</th>
+              <th class="text-end">Prix/mois</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for enrollment in enrollments %}
+              <tr>
+                <td><strong><a href="{% url 'core:group_detail' enrollment.course_group.id %}" class="text-decoration-none">{{ enrollment.course_group.name }}</a></strong></td>
+                <td>{{ enrollment.course_group.subject }}</td>
+                <td>
+                  {% if enrollment.course_group.level %}
+                    <a href="{% url 'core:level_detail' enrollment.course_group.level.id %}" class="text-decoration-none">
+                      <span class="badge badge-secondary"><i class="bi bi-layers"></i> {{ enrollment.course_group.level.name }}</span>
+                    </a>
+                  {% else %}
+                    <span class="badge badge-secondary">-</span>
+                  {% endif %}
+                </td>
+                <td>{{ enrollment.course_group.teacher.name }}</td>
+                <td>
+                  {% for sch in enrollment.course_group.schedules.all %}
+                    <div class="mb-1" style="font-size:12.5px;">
+                      <strong>{{ sch.get_day_display }}</strong> {{ sch.start_time|time:"H:i" }}–{{ sch.end_time|time:"H:i" }}
+                    </div>
+                  {% empty %}<span class="text-muted small">Aucun</span>{% endfor %}
+                </td>
+                <td>
+                  {% for sch in enrollment.course_group.schedules.all %}
+                    <div class="mb-1" style="font-size:12.5px;"><i class="bi bi-door-open text-muted"></i> {{ sch.room.name }}</div>
+                  {% empty %}<span class="text-muted small">-</span>{% endfor %}
+                </td>
+                <td class="text-end"><strong>{{ enrollment.course_group.monthly_price }} DH</strong></td>
+                <td>
+                  <button class="btn btn-sm btn-outline-danger"
+                          onclick="removeEnrollment({{ enrollment.id }}, '{{ enrollment.course_group.name|escapejs }}')">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </td>
+              </tr>
+            {% empty %}
+              <tr>
+                <td colspan="8" class="text-center py-5 text-muted">
+                  Aucun cours.
+                  <button class="btn btn-sm btn-primary ms-2" data-bs-toggle="modal" data-bs-target="#enrollmentModal">Ajouter</button>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Attendance -->
+  <div class="tab-pane fade" id="attendance">
+    <div class="row g-4">
+      <div class="col-md-5">
+        <div class="card">
+          <div class="card-header fw-600">Résumé — 30 derniers jours</div>
+          <div class="card-body">
+            <div class="d-flex justify-content-between mb-2 small">
+              <span>Présent</span>
+              <strong>{{ attended_classes }}/{{ total_classes }}</strong>
+            </div>
+            <div class="progress mb-4" style="height:6px;">
+              <div class="progress-bar bg-success" style="width:{{ attendance_rate }}%"></div>
+            </div>
+            <div class="row text-center g-3">
+              <div class="col-6">
+                <div class="stat-card-value" style="color:var(--success);">{{ attended_classes }}</div>
+                <div class="stat-card-label">Cours suivis</div>
+              </div>
+              <div class="col-6">
+                <div class="stat-card-value" style="color:var(--danger);">{{ total_classes|add:"-1"|add:"-1" }}</div>
+                <div class="stat-card-label">Absences</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-7">
+        <div class="card">
+          <div class="card-header fw-600">Par cours</div>
+          <div class="table-responsive">
+            <table class="table table-sm mb-0">
+              <thead><tr><th>Cours</th><th class="text-end">Taux</th></tr></thead>
+              <tbody>
+                {% for enrollment in enrollments %}
+                  <tr>
+                    <td><small>{{ enrollment.course_group.name }}</small></td>
+                    <td class="text-end"><small class="text-muted">—</small></td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payments -->
+  <div class="tab-pane fade" id="payments">
+    <!-- Monthly summary -->
+    <div class="card mb-4">
+      <div class="card-header fw-600">Historique des 6 derniers mois</div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>Mois</th><th class="text-end">Requis</th><th class="text-end">Payé</th><th class="text-end">Restant</th><th>Statut</th></tr></thead>
+          <tbody>
+            {% for pm in payment_months %}
+              <tr>
+                <td><strong>{{ pm.month }}</strong></td>
+                <td class="text-end">{{ pm.required|floatformat:0 }} DH</td>
+                <td class="text-end">
+                  <strong style="color:{% if pm.status == 'OK' %}var(--success){% elif pm.status == 'PARTIAL' %}var(--warning){% else %}var(--text-muted){% endif %}">
+                    {{ pm.paid|floatformat:0 }} DH
+                  </strong>
+                </td>
+                <td class="text-end">{{ pm.remaining|floatformat:0 }} DH</td>
+                <td>
+                  {% if pm.status == 'OK' %}<span class="badge badge-success">✓ OK</span>
+                  {% elif pm.status == 'PARTIAL' %}<span class="badge badge-warning">⚠ Partiel</span>
+                  {% else %}<span class="badge badge-secondary">Aucun</span>{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Recent payments -->
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between fw-600">
+        Derniers paiements
+        <a href="{% url 'core:payment_create' %}?student_id={{ student.id }}" class="btn btn-sm btn-success">
+          <i class="bi bi-plus-lg"></i> Ajouter paiement
+        </a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead><tr><th>N° Reçu</th><th>Date</th><th>Mois couvert</th><th class="text-end">Montant</th><th>Mode</th><th>Statut</th><th>Action</th></tr></thead>
+          <tbody>
+            {% for payment in payments %}
+              <tr>
+                <td><strong>{{ payment.receipt_number }}</strong></td>
+                <td>{{ payment.payment_date|date:"d/m/Y" }}</td>
+                <td>{{ payment.month_covered|date:"b Y" }}</td>
+                <td class="text-end"><strong>{{ payment.amount }} DH</strong></td>
+                <td><small>{{ payment.get_payment_method_display }}</small></td>
+                <td>
+                  <span class="badge {% if payment.status == 'PAID' %}badge-success{% else %}badge-secondary{% endif %}">
+                    {{ payment.get_status_display }}
+                  </span>
+                </td>
+                <td>
+                  <a href="{% url 'core:receipt_download' payment.id %}" class="btn btn-sm btn-outline-primary" title="Télécharger le reçu PDF">
+                    <i class="bi bi-file-earmark-pdf"></i> PDF
+                  </a>
+                </td>
+              </tr>
+            {% empty %}
+              <tr><td colspan="7" class="text-center py-4 text-muted">Aucun paiement enregistré</td></tr>
+            {% endfor %}
+          </tbody>
+
+        </table>
+      </div>
+      {% if payments.has_other_pages %}
+        <div class="card-footer">
+          <ul class="pagination pagination-sm justify-content-center mb-0">
+            {% if payments.has_previous %}
+              <li class="page-item"><a class="page-link" href="?page={{ payments.previous_page_number }}">‹</a></li>
+            {% endif %}
+            <li class="page-item disabled"><span class="page-link">{{ payments.number }}/{{ payments.paginator.num_pages }}</span></li>
+            {% if payments.has_next %}
+              <li class="page-item"><a class="page-link" href="?page={{ payments.next_page_number }}">›</a></li>
+            {% endif %}
+          </ul>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Info -->
+  <div class="tab-pane fade" id="info">
+    <div class="row g-4">
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-header fw-600">Informations personnelles</div>
+          <div class="card-body d-flex flex-column gap-3">
+             <div><div class="info-label">Nom complet</div><div class="info-value">{{ student.name }}</div></div>
+             <div>
+               <div class="info-label">Niveau scolaire</div>
+               <div class="info-value">
+                 {% if student.level %}
+                   <a href="{% url 'core:level_detail' student.level.id %}" class="text-decoration-none fw-bold" style="color:var(--primary);">
+                     <i class="bi bi-layers-fill me-1"></i>{{ student.level.name }}
+                   </a>
+                 {% else %}
+                   <span class="text-muted">—</span>
+                 {% endif %}
+               </div>
+             </div>
+             {% if student.phone %}<div><div class="info-label">Téléphone élève</div><div class="info-value">{{ student.phone }}</div></div>{% endif %}
+            {% if student.date_of_birth %}<div><div class="info-label">Date de naissance</div><div class="info-value">{{ student.date_of_birth|date:"d/m/Y" }}</div></div>{% endif %}
+            <div><div class="info-label">Inscrit depuis</div><div class="info-value">{{ student.created_at|date:"d/m/Y" }}</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-header fw-600">Contact du parent</div>
+          <div class="card-body d-flex flex-column gap-3">
+            {% if student.parent_name %}<div><div class="info-label">Nom du parent</div><div class="info-value">{{ student.parent_name }}</div></div>{% endif %}
+            <div><div class="info-label">Téléphone</div><div class="info-value">{{ student.parent_contact }}</div></div>
+            {% if student.address %}<div><div class="info-label">Adresse</div><div class="info-value">{{ student.address }}</div></div>{% endif %}
+            {% if student.notes %}<div><div class="info-label">Notes</div><div class="info-value">{{ student.notes }}</div></div>{% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card">
+          <div class="card-header fw-600 d-flex align-items-center gap-2">
+            <i class="bi bi-wallet2 text-primary"></i>
+            <span>Détails de l'abonnement</span>
+          </div>
+          <div class="card-body d-flex flex-column gap-3">
+            {% for em in enrollments %}
+              <div class="border-bottom pb-2 {% if not forloop.last %}mb-2{% endif %}">
+                <div class="fw-bold text-primary mb-1">{{ em.course_group.name }}</div>
+                <div class="mb-2">
+                  <div class="info-label">Date d'inscription</div>
+                  <div class="info-value">{{ em.enrolled_date|date:"d/m/Y" }}</div>
+                </div>
+                <div class="mb-2">
+                  <div class="info-label">Premier paiement</div>
+                  <div class="info-value text-successfw-bold">{{ em.get_initial_payment }}</div>
+                </div>
+                <div class="mb-1">
+                  <div class="info-label">Prochain paiement</div>
+                  <div class="info-value">
+                    {% if em.next_payment_date %}
+                      <span class="text-success fw-bold"><i class="bi bi-calendar-check me-1"></i>{{ em.next_payment_date|date:"d/m/Y" }}</span>
+                    {% else %}
+                      <span class="text-muted small">Non défini</span>
+                    {% endif %}
+                  </div>
+                  <div class="form-text mt-1 text-muted" style="font-size: 11px;">
+                    ℹ️ Les paiements futurs sont ancrés au 1er de chaque mois.
+                  </div>
+                </div>
+              </div>
+            {% empty %}
+              <span class="text-muted small">Aucune inscription active.</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- tab-content -->
+
+<!-- Breadcrumb actions -->
+<div class="mt-4 d-flex gap-2">
+  <a href="{% url 'core:students_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Retour à la liste
+  </a>
+  <a href="{% url 'core:student_delete_confirm' student.id %}" class="btn btn-outline-danger ms-auto">
+    <i class="bi bi-trash"></i> Supprimer cet élève
+  </a>
+</div>
+
+<!-- Add Enrollment Modal -->
+<div class="modal fade" id="enrollmentModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-book-plus text-primary"></i> Inscrire à un cours</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{% url 'core:enrollment_add' student.id %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="alert alert-info" style="font-size:13px;">
+            <i class="bi bi-info-circle"></i> Sélectionnez un groupe de cours pour inscrire cet élève.
+          </div>
+          <div class="mb-3">
+            <label for="courseSelect" class="form-label">Groupe de cours</label>
+            <select id="courseSelect" name="course_group_id" class="form-select" required>
+              <option value="">— Sélectionner un cours —</option>
+              {% load_courses student as courses %}
+              {% for course in courses %}
+                <option value="{{ course.id }}">
+                  {{ course.name }}
+                  ({% for sch in course.schedules.all %}{{ sch.get_day_display }} {{ sch.start_time|time:"H:i" }}{% if not forloop.last %}, {% endif %}{% endfor %})
+                </option>
+              {% empty %}
+                <option disabled>Aucun cours disponible</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">Les cours déjà inscrits n'apparaissent pas.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Inscrire</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Remove Enrollment Modal -->
+<div class="modal fade" id="removeEnrollmentModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--danger);color:#fff;">
+        <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill"></i> Confirmer la suppression</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="alert alert-warning"><i class="bi bi-info-circle-fill"></i> Cette action est irréversible.</div>
+        <p>Êtes-vous sûr de vouloir retirer l'élève du cours suivant ?</p>
+        <div class="p-3 rounded" style="background:var(--surface-alt);">
+          <strong id="removeCourseName"></strong>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal"><i class="bi bi-x-circle"></i> Annuler</button>
+        <button type="button" class="btn btn-danger" id="confirmRemoveBtn"><i class="bi bi-trash"></i> Retirer du cours</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let enrollmentToRemove = null;
+
+function removeEnrollment(enrollmentId, courseName) {
+  enrollmentToRemove = enrollmentId;
+  document.getElementById('removeCourseName').textContent = courseName;
+  new bootstrap.Modal(document.getElementById('removeEnrollmentModal')).show();
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  const confirmBtn = document.getElementById('confirmRemoveBtn');
+  const modal = document.getElementById('removeEnrollmentModal');
+
+  if (confirmBtn) {
+    confirmBtn.addEventListener('click', async function () {
+      if (!enrollmentToRemove) return;
+      confirmBtn.disabled = true;
+      const orig = confirmBtn.innerHTML;
+      confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Suppression...';
+
+      try {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken');
+        const res = await fetch(`/enrollment/${enrollmentToRemove}/remove/`, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': csrfToken, 'X-Requested-With': 'XMLHttpRequest', 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        if (data.success) {
+          bootstrap.Modal.getInstance(modal).hide();
+          setTimeout(() => window.location.reload(), 600);
+        } else {
+          alert(data.message || 'Erreur lors de la suppression.');
+          confirmBtn.disabled = false;
+          confirmBtn.innerHTML = orig;
+        }
+      } catch (e) {
+        console.error(e);
+        alert('Erreur réseau. Veuillez réessayer.');
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = orig;
+      }
+    });
+
+    modal.addEventListener('hidden.bs.modal', function () {
+      enrollmentToRemove = null;
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = '<i class="bi bi-trash"></i> Retirer du cours';
+    });
+  }
+});
+
+function getCookie(name) {
+  let v = null;
+  if (document.cookie) {
+    for (const c of document.cookie.split(';')) {
+      const t = c.trim();
+      if (t.startsWith(name + '=')) { v = decodeURIComponent(t.substring(name.length + 1)); break; }
+    }
+  }
+  return v;
+}
+</script>
+{% endblock %}

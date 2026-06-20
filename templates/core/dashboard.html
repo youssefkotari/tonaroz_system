@@ -1,0 +1,177 @@
+{% extends 'core/base.html' %}
+{% block title %}Dashboard — Centre Tonaroz{% endblock %}
+
+{% block extra_css %}
+<style>
+  .stat-card-link {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+  }
+  .stat-card-link:hover {
+    text-decoration: none;
+    color: inherit;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between">
+  <div>
+    <h1 class="page-title">Tableau de Bord</h1>
+    <p class="page-subtitle">Bienvenue sur votre espace de gestion scolaire</p>
+  </div>
+  <a href="{% url 'core:sessions_today' %}" class="btn btn-primary">
+    <i class="bi bi-calendar2-event"></i> Sessions du jour
+  </a>
+</div>
+
+<!-- ── KPI Row ───────────────────────────────────────────────────── -->
+<div class="row g-4 mb-4">
+
+  <!-- Revenue this month -->
+  <div class="col-sm-6 col-xl-4">
+    <div class="stat-card">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-card-label">Recette du mois</div>
+          <div class="stat-card-value">{{ stats.revenue.month|floatformat:0 }}<span style="font-size:16px;font-weight:500;color:var(--text-secondary);"> DH</span></div>
+        </div>
+        <div class="stat-card-icon" style="background:#e0e7ff;">
+          <i class="bi bi-cash-coin" style="color:#6366f1;"></i>
+        </div>
+      </div>
+      <div class="mt-3 pt-3" style="border-top:1px solid var(--border);">
+        <small class="text-secondary">
+          <i class="bi bi-calendar-event me-1"></i>
+          Aujourd'hui&nbsp;<strong>{{ stats.revenue.today|floatformat:0 }} DH</strong>
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Active students -->
+  <div class="col-sm-6 col-xl-4">
+    <div class="stat-card">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-card-label">Élèves actifs</div>
+          <div class="stat-card-value">{{ stats.counts.students }}</div>
+        </div>
+        <div class="stat-card-icon" style="background:#d1fae5;">
+          <i class="bi bi-people-fill" style="color:#10b981;"></i>
+        </div>
+      </div>
+      <div class="mt-3 pt-3" style="border-top:1px solid var(--border);">
+        <small class="text-secondary">
+          <i class="bi bi-book me-1"></i>
+          <strong>{{ stats.counts.courses }}</strong> groupes&nbsp;&nbsp;
+          <i class="bi bi-person-badge me-1"></i>
+          <strong>{{ stats.counts.teachers }}</strong> professeurs
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unpaid -->
+  <div class="col-sm-6 col-xl-4">
+    <a href="{% url 'core:students_list' %}?payment_status=unpaid" class="stat-card stat-card-link" style="border-color:#fca5a5;">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-card-label">Impayés</div>
+          <div class="stat-card-value" style="color:var(--danger);">{{ stats.alerts.unpaid_count }}</div>
+        </div>
+        <div class="stat-card-icon" style="background:#fee2e2;">
+          <i class="bi bi-exclamation-circle-fill" style="color:#ef4444;"></i>
+        </div>
+      </div>
+      <div class="mt-3 pt-3" style="border-top:1px solid var(--border);">
+        <small style="color:var(--danger);">
+          <i class="bi bi-currency-dollar me-1"></i>
+          Montant dû&nbsp;<strong>{{ stats.alerts.unpaid_amount|floatformat:0 }} DH</strong>
+        </small>
+      </div>
+    </a>
+  </div>
+
+</div>
+
+<!-- ── Red List ──────────────────────────────────────────────────── -->
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center gap-2">
+      <span class="stat-card-icon" style="width:28px;height:28px;font-size:13px;background:#fee2e2;">
+        <i class="bi bi-exclamation-triangle-fill" style="color:#ef4444;"></i>
+      </span>
+      <span class="fw-700">Liste Rouge — Élèves impayés</span>
+    </div>
+    {% if red_list %}
+      <span class="badge badge-danger">{{ red_list|length }} élève{{ red_list|length|pluralize }}</span>
+    {% endif %}
+  </div>
+
+  {% if red_list %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Élève</th>
+            <th>Parent / Contact</th>
+            <th class="text-end">Requis</th>
+            <th class="text-end">Payé</th>
+            <th class="text-end">Restant</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in red_list %}
+            <tr>
+              <td><strong>{{ item.student.name }}</strong></td>
+              <td>
+                <i class="bi bi-telephone text-muted"></i>
+                <span class="ms-1">{{ item.student.parent_contact }}</span>
+              </td>
+              <td class="text-end">
+                <span class="badge badge-info">{{ item.required|floatformat:0 }} DH</span>
+              </td>
+              <td class="text-end">
+                <span class="badge badge-success">{{ item.paid|floatformat:0 }} DH</span>
+              </td>
+              <td class="text-end">
+                <span class="badge badge-danger">{{ item.remaining|floatformat:0 }} DH</span>
+              </td>
+              <td>
+                {% if item.status == 'UNPAID' %}
+                  <span class="badge badge-danger"><i class="bi bi-x-circle-fill"></i> Non payé</span>
+                {% else %}
+                  <span class="badge badge-warning"><i class="bi bi-exclamation-circle-fill"></i> Partiel</span>
+                {% endif %}
+              </td>
+              <td>
+                <div class="d-flex gap-2">
+                  <a href="/students/{{ item.student.id }}/" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-eye"></i>
+                  </a>
+                  <a href="/cashier/payment/create/?student_id={{ item.student.id }}" class="btn btn-sm btn-success">
+                    <i class="bi bi-cash-coin"></i> Payer
+                  </a>
+                </div>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="card-body">
+      <div class="empty-state">
+        <div class="empty-state-icon"><i class="bi bi-check-circle-fill" style="color:var(--success);opacity:1;"></i></div>
+        <div class="empty-state-title">Tous les élèves sont à jour !</div>
+        <div class="empty-state-text">Aucun impayé en ce moment. Excellent travail.</div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

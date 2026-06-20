@@ -1,0 +1,248 @@
+{% extends 'core/base.html' %}
+{% block title %}Détecteur de conflits — Centre Tonaroz{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between">
+  <div>
+    <h1 class="page-title">
+      <i class="bi bi-exclamation-triangle-fill me-2" style="color:var(--warning);"></i>Détecteur de conflits
+    </h1>
+    <p class="page-subtitle">Détection en temps réel des chevauchements et dépassements de capacité</p>
+  </div>
+  <a href="{% url 'core:sessions_schedule' %}" class="btn btn-outline-primary">
+    <i class="bi bi-calendar3"></i> Planification
+  </a>
+</div>
+
+<!-- Summary stats -->
+<div class="row g-4 mb-4">
+  <div class="col-md-4">
+    <div class="stat-card" style="border-left:3px solid var(--warning);">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-card-label">Conflits hebdomadaires</div>
+          <div class="stat-card-value" style="color:var(--warning);">{{ schedule_conflicts|length }}</div>
+          <small class="text-muted">Dans la structure des groupes</small>
+        </div>
+        <div class="stat-card-icon" style="background:#fef3c7;"><i class="bi bi-calendar-week" style="color:#d97706;"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card" style="border-left:3px solid var(--danger);">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-card-label">Conflits de sessions</div>
+          <div class="stat-card-value" style="color:var(--danger);">{{ session_conflicts|length }}</div>
+          <small class="text-muted">Sur les dates spécifiques</small>
+        </div>
+        <div class="stat-card-icon" style="background:#fee2e2;"><i class="bi bi-calendar2-range" style="color:#ef4444;"></i></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="stat-card" style="border-left:3px solid var(--info);">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-card-label">Alertes de capacité</div>
+          <div class="stat-card-value" style="color:var(--info);">{{ capacity_warnings|length }}</div>
+          <small class="text-muted">Élèves > Places disponibles</small>
+        </div>
+        <div class="stat-card-icon" style="background:#dbeafe;"><i class="bi bi-people" style="color:#3b82f6;"></i></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabs -->
+<div class="card">
+  <div class="card-header">
+    <ul class="nav nav-tabs card-header-tabs" role="tablist">
+      <li class="nav-item">
+        <button class="nav-link active position-relative" data-bs-toggle="tab" data-bs-target="#schedules-pane">
+          <i class="bi bi-calendar-week me-1"></i>Structure Hebdomadaire
+          {% if schedule_conflicts %}<span class="badge badge-warning ms-1">{{ schedule_conflicts|length }}</span>{% endif %}
+        </button>
+      </li>
+      <li class="nav-item ms-1">
+        <button class="nav-link position-relative" data-bs-toggle="tab" data-bs-target="#sessions-pane">
+          <i class="bi bi-calendar2-range me-1"></i>Sessions Planifiées
+          {% if session_conflicts %}<span class="badge badge-danger ms-1">{{ session_conflicts|length }}</span>{% endif %}
+        </button>
+      </li>
+      <li class="nav-item ms-1">
+        <button class="nav-link position-relative" data-bs-toggle="tab" data-bs-target="#capacity-pane">
+          <i class="bi bi-people me-1"></i>Capacité Salles
+          {% if capacity_warnings %}<span class="badge badge-info ms-1">{{ capacity_warnings|length }}</span>{% endif %}
+        </button>
+      </li>
+    </ul>
+  </div>
+
+  <div class="card-body">
+    <div class="tab-content">
+
+      <!-- Schedules -->
+      <div class="tab-pane fade show active" id="schedules-pane">
+        {% if schedule_conflicts %}
+          <div class="alert alert-warning mb-4" style="font-size:13px;">
+            <i class="bi bi-info-circle-fill me-2"></i>Ces conflits proviennent de la <strong>configuration des groupes</strong> et affectent toutes les semaines futures par défaut.
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Type</th><th>Entité</th><th>Groupe A</th><th>Groupe B</th><th>Jour & Horaire</th><th class="text-end">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for conflict in schedule_conflicts %}
+                  <tr>
+                    <td>
+                      {% if conflict.type == 'ROOM' %}
+                        <span class="badge badge-warning"><i class="bi bi-door-open-fill"></i> Double salle</span>
+                      {% else %}
+                        <span class="badge" style="background:#ede9fe;color:#7c3aed;"><i class="bi bi-person-fill-exclamation"></i> Double prof</span>
+                      {% endif %}
+                    </td>
+                    <td><strong>{{ conflict.entity.name }}</strong></td>
+                    <td>
+                      <a href="{% url 'core:course_group_edit' conflict.sch1.course_group.id %}" class="fw-600 text-decoration-none">
+                        {{ conflict.sch1.course_group.name }}
+                      </a>
+                    </td>
+                    <td>
+                      <a href="{% url 'core:course_group_edit' conflict.sch2.course_group.id %}" class="fw-600 text-decoration-none text-secondary">
+                        {{ conflict.sch2.course_group.name }}
+                      </a>
+                    </td>
+                    <td>
+                      <span class="badge badge-secondary">{{ conflict.sch1.get_day_display }} {{ conflict.sch1.start_time|time:"H:i" }} – {{ conflict.sch1.end_time|time:"H:i" }}</span>
+                    </td>
+                    <td class="text-end">
+                      <div class="d-flex gap-1 justify-content-end">
+                        <a href="{% url 'core:course_group_edit' conflict.sch1.course_group.id %}" class="btn btn-sm btn-outline-primary">
+                          <i class="bi bi-pencil"></i> A
+                        </a>
+                        <a href="{% url 'core:course_group_edit' conflict.sch2.course_group.id %}" class="btn btn-sm btn-outline-secondary">
+                          <i class="bi bi-pencil"></i> B
+                        </a>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <div class="empty-state-icon" style="color:var(--success);opacity:1;"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="empty-state-title">Aucun conflit d'horaire hebdomadaire</div>
+            <div class="empty-state-text">Votre emploi du temps est sans collision.</div>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Session conflicts -->
+      <div class="tab-pane fade" id="sessions-pane">
+        {% if session_conflicts %}
+          <div class="alert alert-danger mb-4" style="font-size:13px;">
+            <i class="bi bi-info-circle-fill me-2"></i>Ces conflits concernent des <strong>dates spécifiques</strong> déjà générées.
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr><th>Type</th><th>Date</th><th>Entité</th><th>Session A</th><th>Session B</th><th>Horaire</th><th class="text-end">Actions</th></tr>
+              </thead>
+              <tbody>
+                {% for conflict in session_conflicts %}
+                  <tr>
+                    <td>
+                      {% if conflict.type == 'ROOM' %}
+                        <span class="badge badge-danger"><i class="bi bi-door-open-fill"></i> Double salle</span>
+                      {% else %}
+                        <span class="badge" style="background:#ede9fe;color:#7c3aed;"><i class="bi bi-person-fill-exclamation"></i> Double prof</span>
+                      {% endif %}
+                    </td>
+                    <td><span class="badge badge-secondary"><i class="bi bi-calendar-event"></i> {{ conflict.session1.date|date:"d/m/Y" }}</span></td>
+                    <td><strong>{{ conflict.entity.name }}</strong></td>
+                    <td class="fw-600" style="color:var(--primary);">{{ conflict.session1.group.name }}</td>
+                    <td class="fw-600 text-secondary">{{ conflict.session2.group.name }}</td>
+                    <td><span class="badge badge-secondary">{{ conflict.session1.start_time|time:"H:i" }} – {{ conflict.session1.end_time|time:"H:i" }}</span></td>
+                    <td class="text-end">
+                      <div class="d-flex gap-1 justify-content-end">
+                        <a href="{% url 'core:session_edit' conflict.session1.id %}" class="btn btn-sm btn-outline-danger"><i class="bi bi-pencil"></i> A</a>
+                        <a href="{% url 'core:session_edit' conflict.session2.id %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil"></i> B</a>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <div class="empty-state-icon" style="color:var(--success);opacity:1;"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="empty-state-title">Aucun conflit de session</div>
+            <div class="empty-state-text">Toutes les sessions planifiées sont sans interférence.</div>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Capacity warnings -->
+      <div class="tab-pane fade" id="capacity-pane">
+        {% if capacity_warnings %}
+          <div class="alert alert-info mb-4" style="font-size:13px;">
+            <i class="bi bi-info-circle-fill me-2"></i>Les groupes ou sessions dont le nombre d'élèves dépasse la capacité de la salle.
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr><th>Contexte</th><th>Groupe</th><th>Salle</th><th class="text-end">Capacité</th><th class="text-end">Inscrits</th><th class="text-end">Dépassement</th><th class="text-end">Actions</th></tr>
+              </thead>
+              <tbody>
+                {% for warn in capacity_warnings %}
+                  <tr>
+                    <td>
+                      {% if warn.context == 'SCHEDULE' %}
+                        <span class="badge badge-primary">Structure de base</span>
+                      {% else %}
+                        <span class="badge badge-secondary">Session ({{ warn.session.date|date:"d/m" }})</span>
+                      {% endif %}
+                    </td>
+                    <td><strong>{{ warn.course.name }}</strong></td>
+                    <td><span class="badge badge-secondary"><i class="bi bi-door-open"></i> {{ warn.room.name }}</span></td>
+                    <td class="text-end">{{ warn.capacity }}</td>
+                    <td class="text-end"><strong style="color:var(--danger);">{{ warn.enrolled }}</strong></td>
+                    <td class="text-end"><span class="badge badge-danger">+{{ warn.enrolled|add:"-1" }} places</span></td>
+                    <td class="text-end">
+                      {% if warn.context == 'SCHEDULE' %}
+                        <a href="{% url 'core:course_group_edit' warn.course.id %}" class="btn btn-sm btn-outline-primary">
+                          <i class="bi bi-door-open-fill"></i> Changer salle
+                        </a>
+                      {% else %}
+                        <a href="{% url 'core:session_edit' warn.session.id %}" class="btn btn-sm btn-outline-danger">
+                          <i class="bi bi-door-open-fill"></i> Déplacer
+                        </a>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <div class="empty-state-icon" style="color:var(--success);opacity:1;"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="empty-state-title">Aucune alerte de capacité</div>
+            <div class="empty-state-text">Toutes les salles ont des capacités suffisantes.</div>
+          </div>
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<style>.fw-600 { font-weight: 600; }</style>
+{% endblock %}

@@ -1,0 +1,237 @@
+{% extends 'admin/base.html' %}
+{% load i18n static %}
+
+{% block title %} Tableau de bord {% endblock %}
+
+{% block branding %}
+{% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+
+{% comment %}WELCOME BANNER{% endcomment %}
+<div style="
+    background: linear-gradient(135deg, #0284c7 0%, #ef4444 100%);
+    border-radius: 12px;
+    padding: 1.75rem 2rem;
+    margin-bottom: 1.75rem;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+    box-shadow: 0 4px 24px rgba(2,132,199,.25);
+    overflow: hidden;
+    position: relative;
+">
+    <div style="position: relative; z-index: 1;">
+        <div
+            style="font-size: .8rem; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; opacity: .8; margin-bottom: .35rem;">
+            🎓 Centre Tonaroz – Administration
+        </div>
+        <div style="font-size: 1.6rem; font-weight: 800; line-height: 1.1; letter-spacing: -.02em;">
+            Bienvenue, {{ user.get_short_name|default:user.username }} 👋
+        </div>
+        <div style="font-size: .85rem; opacity: .75; margin-top: .4rem;">
+            Tableau de bord · Gestion des élèves, groupes et paiements
+        </div>
+    </div>
+    <div style="position: relative; z-index: 1; display: flex; gap: .75rem; flex-wrap: wrap;">
+        <a href="{% url 'admin:core_student_add' %}"
+            style="background: rgba(255,255,255,.18); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,.3); color: #fff; padding: .55rem 1.1rem; border-radius: 8px; font-weight: 600; font-size: .82rem; text-decoration: none; display: flex; align-items: center; gap: .4rem;"
+            onmouseover="this.style.background='rgba(255,255,255,.28)'"
+            onmouseout="this.style.background='rgba(255,255,255,.18)'">
+            <span class="material-symbols-outlined" style="font-size: 18px;">person_add</span>
+            Ajouter un élève
+        </a>
+        <a href="{% url 'admin:core_payment_add' %}"
+            style="background: rgba(255,255,255,.18); backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,.3); color: #fff; padding: .55rem 1.1rem; border-radius: 8px; font-weight: 600; font-size: .82rem; text-decoration: none; display: flex; align-items: center; gap: .4rem;"
+            onmouseover="this.style.background='rgba(255,255,255,.28)'"
+            onmouseout="this.style.background='rgba(255,255,255,.18)'">
+            <span class="material-symbols-outlined" style="font-size: 18px;">payments</span>
+            Enregistrer un paiement
+        </a>
+    </div>
+    <div
+        style="position: absolute; right: -40px; top: -40px; width: 180px; height: 180px; background: rgba(255,255,255,.06); border-radius: 50%; pointer-events:none;">
+    </div>
+    <div
+        style="position: absolute; right: 60px; bottom: -60px; width: 140px; height: 140px; background: rgba(255,255,255,.05); border-radius: 50%; pointer-events:none;">
+    </div>
+</div>
+
+{% comment %}KPI CARDS{% endcomment %}
+<div class="school-kpi-grid">
+
+    <a href="{% url 'admin:core_student_changelist' %}" style="text-decoration:none;">
+        <div class="school-kpi-card" style="--kpi-color:#4f46e5;">
+            <div class="school-kpi-icon">
+                <span class="material-symbols-outlined">school</span>
+            </div>
+            <div class="school-kpi-value" id="kpi-students">–</div>
+            <div class="school-kpi-label">Élèves</div>
+            <div class="school-kpi-sub">Voir tous les élèves →</div>
+        </div>
+    </a>
+
+    <a href="{% url 'admin:core_teacher_changelist' %}" style="text-decoration:none;">
+        <div class="school-kpi-card" style="--kpi-color:#06b6d4;">
+            <div class="school-kpi-icon">
+                <span class="material-symbols-outlined">person_book</span>
+            </div>
+            <div class="school-kpi-value" id="kpi-teachers">–</div>
+            <div class="school-kpi-label">Professeurs</div>
+            <div class="school-kpi-sub">Voir tous les profs →</div>
+        </div>
+    </a>
+
+    <a href="{% url 'admin:core_coursegroup_changelist' %}" style="text-decoration:none;">
+        <div class="school-kpi-card" style="--kpi-color:#8b5cf6;">
+            <div class="school-kpi-icon">
+                <span class="material-symbols-outlined">groups</span>
+            </div>
+            <div class="school-kpi-value" id="kpi-groups">–</div>
+            <div class="school-kpi-label">Groupes actifs</div>
+            <div class="school-kpi-sub">Gérer les groupes →</div>
+        </div>
+    </a>
+
+    <a href="{% url 'admin:core_payment_changelist' %}" style="text-decoration:none;">
+        <div class="school-kpi-card" style="--kpi-color:#10b981;">
+            <div class="school-kpi-icon">
+                <span class="material-symbols-outlined">payments</span>
+            </div>
+            <div class="school-kpi-value" id="kpi-payments">–</div>
+            <div class="school-kpi-label">Paiements</div>
+            <div class="school-kpi-sub">Voir les paiements →</div>
+        </div>
+    </a>
+
+    <a href="{% url 'admin:core_room_changelist' %}" style="text-decoration:none;">
+        <div class="school-kpi-card" style="--kpi-color:#ef4444;">
+            <div class="school-kpi-icon">
+                <span class="material-symbols-outlined">meeting_room</span>
+            </div>
+            <div class="school-kpi-value" id="kpi-rooms">–</div>
+            <div class="school-kpi-label">Salles</div>
+            <div class="school-kpi-sub">Gérer les salles →</div>
+        </div>
+    </a>
+
+</div>
+
+{% comment %}MAIN GRID: App list + Quick Actions{% endcomment %}
+<div style="display:grid; grid-template-columns: 1fr 320px; gap:1.5rem; align-items:start;" class="school-main-grid">
+
+    <div>
+        <div class="school-section-head" style="margin-bottom:1rem;">
+            <h2 style="font-size:1rem;font-weight:700;color:#0f172a;margin:0;">📋 Modules de gestion</h2>
+        </div>
+        {% include "unfold/helpers/app_list_default.html" %}
+    </div>
+
+    <div style="display:flex; flex-direction:column; gap:1.25rem;">
+
+        <div class="school-quick-actions">
+            <h3>
+                <span class="material-symbols-outlined"
+                    style="font-size:14px;vertical-align:middle;margin-right:.3em;">bolt</span>
+                Actions rapides
+            </h3>
+            <div class="school-quick-links">
+                <a class="school-quick-link" href="{% url 'admin:core_student_add' %}">
+                    <span class="material-symbols-outlined">person_add</span>
+                    Nouvel élève
+                </a>
+                <a class="school-quick-link" href="{% url 'admin:core_teacher_add' %}">
+                    <span class="material-symbols-outlined">person_book</span>
+                    Nouveau prof
+                </a>
+                <a class="school-quick-link" href="{% url 'admin:core_coursegroup_add' %}">
+                    <span class="material-symbols-outlined">add_circle</span>
+                    Nouveau groupe
+                </a>
+                <a class="school-quick-link" href="{% url 'admin:core_payment_add' %}">
+                    <span class="material-symbols-outlined">payments</span>
+                    Paiement
+                </a>
+                <a class="school-quick-link" href="{% url 'admin:core_sessionexception_add' %}">
+                    <span class="material-symbols-outlined">event_busy</span>
+                    Exception
+                </a>
+                <a class="school-quick-link" href="{% url 'admin:core_attendance_changelist' %}">
+                    <span class="material-symbols-outlined">fact_check</span>
+                    Présences
+                </a>
+            </div>
+        </div>
+
+        {% include "unfold/helpers/history.html" %}
+
+    </div>
+</div>
+
+<style>
+    @media (max-width: 1024px) {
+        .school-main-grid {
+            grid-template-columns: 1fr !important;
+        }
+    }
+</style>
+
+<script>
+    (function () {
+        function animateCount(el, target, duration) {
+            if (!el || isNaN(target)) return;
+            var start = 0;
+            var step = Math.ceil(target / (duration / 16));
+            var timer = setInterval(function () {
+                start = Math.min(start + step, target);
+                el.textContent = start.toLocaleString('fr-FR');
+                if (start >= target) clearInterval(timer);
+            }, 16);
+        }
+
+        async function fetchCounts() {
+            try {
+                var resp = await fetch('{% url "core:admin_kpis_api" %}', { credentials: 'same-origin' });
+                if (resp.ok) {
+                    return await resp.json();
+                }
+                return null;
+            } catch (e) { return null; }
+        }
+
+        var kpiMapping = {
+            'kpi-students': 'students',
+            'kpi-teachers': 'teachers',
+            'kpi-groups': 'groups',
+            'kpi-payments': 'payments',
+            'kpi-sessions': 'sessions',
+            'kpi-rooms': 'rooms'
+        };
+
+        fetchCounts().then(function (data) {
+            if (data) {
+                Object.keys(kpiMapping).forEach(function (elementId) {
+                    var el = document.getElementById(elementId);
+                    var countKey = kpiMapping[elementId];
+                    var count = data[countKey];
+                    if (el && count !== undefined && count !== null) {
+                        animateCount(el, count, 600);
+                    } else if (el) {
+                        el.textContent = '–';
+                    }
+                });
+            } else {
+                Object.keys(kpiMapping).forEach(function (elementId) {
+                    var el = document.getElementById(elementId);
+                    if (el) el.textContent = '–';
+                });
+            }
+        });
+    })();
+</script>
+
+{% endblock %}

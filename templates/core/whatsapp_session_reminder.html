@@ -1,0 +1,140 @@
+{% extends 'core/base.html' %}
+{% block title %}Rappel de session WhatsApp — Centre Tonaroz{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between">
+  <div>
+    <h1 class="page-title">
+      <i class="bi bi-whatsapp me-2" style="color:#25d366;"></i>Rappel de session
+    </h1>
+    <p class="page-subtitle">{{ session.group.name }} — {{ session.date|date:"l d F Y" }}</p>
+  </div>
+  <a href="{% url 'core:sessions_today' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i> Retour
+  </a>
+</div>
+
+<!-- Session info -->
+<div class="card mb-4">
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-3">
+        <div class="info-label">Cours</div>
+        <div class="info-value fw-600">{{ session.group.name }}</div>
+      </div>
+      <div class="col-md-2">
+        <div class="info-label">Date</div>
+        <div class="info-value">{{ session.date|date:"d/m/Y" }}</div>
+      </div>
+      <div class="col-md-2">
+        <div class="info-label">Horaire</div>
+        <div class="info-value" style="color:var(--primary);">{{ session.start_time }} – {{ session.end_time }}</div>
+      </div>
+      <div class="col-md-2">
+        <div class="info-label">Salle</div>
+        <div class="info-value">{{ session.room.name|default:"N/A" }}</div>
+      </div>
+      <div class="col-md-3">
+        <div class="info-label">Professeur</div>
+        <div class="info-value">{{ session.group.teacher.name }}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Students table -->
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center gap-2">
+      <span class="fw-600"><i class="bi bi-people me-1"></i>Élèves ({{ total_students }})</span>
+    </div>
+    <button class="btn btn-sm btn-success" id="send-all-btn"
+            style="background:#25d366;border-color:#25d366;">
+      <i class="bi bi-whatsapp"></i> Envoyer à tous ({{ total_students }})
+    </button>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>#</th><th>Élève</th><th>Parent</th><th>Téléphone</th><th>Message</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for contact in reminder_contacts %}
+          <tr>
+            <td class="text-muted">{{ forloop.counter }}</td>
+            <td><strong>{{ contact.student_name }}</strong></td>
+            <td>{{ contact.name }}</td>
+            <td>
+              <span class="badge badge-secondary"><i class="bi bi-phone"></i> {{ contact.phone }}</span>
+            </td>
+            <td>
+              <button class="btn btn-sm btn-outline-secondary"
+                      data-bs-toggle="modal"
+                      data-bs-target="#modal{{ forloop.counter }}">
+                <i class="bi bi-eye"></i> Voir
+              </button>
+            </td>
+            <td>
+              <a href="{{ contact.whatsapp_link }}" target="_blank"
+                 class="btn btn-sm btn-success whatsapp-link"
+                 style="background:#25d366;border-color:#25d366;">
+                <i class="bi bi-whatsapp"></i> Envoyer
+              </a>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Message modals -->
+{% for contact in reminder_contacts %}
+  <div class="modal fade" id="modal{{ forloop.counter }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="bi bi-whatsapp text-success me-2"></i>Message — {{ contact.name }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="p-3 rounded" style="background:var(--surface-alt);white-space:pre-wrap;font-size:13px;border:1px solid var(--border);">{{ contact.message }}</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fermer</button>
+          <a href="{{ contact.whatsapp_link }}" target="_blank" class="btn btn-success" data-bs-dismiss="modal"
+             style="background:#25d366;border-color:#25d366;">
+            <i class="bi bi-whatsapp"></i> Envoyer
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+
+<style>
+  .fw-600 { font-weight: 600; }
+  .info-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 2px; }
+  .info-value { font-size: 14px; font-weight: 500; }
+</style>
+
+<script>
+  document.getElementById('send-all-btn').addEventListener('click', function () {
+    if (!confirm('Envoyer le rappel à tous les {{ total_students }} élèves?')) return;
+    const links = document.querySelectorAll('.whatsapp-link');
+    links.forEach((link, i) => {
+      setTimeout(() => window.open(link.href, '_blank'), i * 500);
+    });
+  });
+
+  document.querySelectorAll('.whatsapp-link').forEach(a => {
+    a.addEventListener('click', function () {
+      this.style.background = '#128C7E';
+      this.style.borderColor = '#128C7E';
+      this.innerHTML = '<i class="bi bi-check"></i> Envoyé';
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,143 @@
+{% extends 'core/base.html' %}
+{% block title %}Annonces groupées WhatsApp — Centre Tonaroz{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-start justify-content-between">
+  <div>
+    <h1 class="page-title">
+      <i class="bi bi-whatsapp me-2" style="color:#25d366;"></i>Annonces groupées
+    </h1>
+    <p class="page-subtitle">Envoyez des messages à tous les parents d'élèves actifs</p>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="row g-4 mb-4">
+  <div class="col-md-4">
+    <div class="stat-card">
+      <div class="d-flex align-items-center justify-content-between">
+        <div>
+          <div class="stat-card-label">Total contacts</div>
+          <div class="stat-card-value">{{ total_contacts }}</div>
+        </div>
+        <div class="stat-card-icon" style="background:#d1fae5;">
+          <i class="bi bi-people-fill" style="color:#10b981;"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Composer -->
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header d-flex align-items-center gap-2">
+        <i class="bi bi-pencil-square" style="color:var(--primary);font-size:16px;"></i>
+        <span class="fw-600">Composer le message</span>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+
+          <!-- Templates -->
+          <div class="mb-3">
+            <label class="form-label">Modèles rapides</label>
+            <div class="d-flex gap-2 flex-wrap">
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setTemplate('general')">
+                <i class="bi bi-chat-dots"></i> Général
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setTemplate('event')">
+                <i class="bi bi-calendar-event"></i> Événement
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setTemplate('closure')">
+                <i class="bi bi-door-closed"></i> Fermeture
+              </button>
+            </div>
+          </div>
+
+          <!-- Message textarea -->
+          <div class="mb-3">
+            <label class="form-label">Message</label>
+            <textarea class="form-control" name="message_template" id="message-template" rows="8" required
+                      placeholder="Saisissez votre message...&#10;&#10;Variables disponibles :&#10;{name} — Nom du parent&#10;{student_name} — Nom de l'élève"></textarea>
+            <div class="form-text">
+              Variables : <code>{name}</code> pour le parent, <code>{student_name}</code> pour l'élève
+            </div>
+          </div>
+
+          <!-- Preview -->
+          <div class="mb-4">
+            <label class="form-label">Aperçu</label>
+            <div id="preview" class="p-3 rounded" style="background:var(--surface-alt);white-space:pre-wrap;font-size:13px;border:1px solid var(--border);min-height:60px;">
+              <em class="text-muted">L'aperçu s'affichera ici...</em>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-success w-100" style="background:#25d366;border-color:#25d366;">
+            <i class="bi bi-send"></i> Générer les liens WhatsApp
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact list preview -->
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header fw-600">
+        <i class="bi bi-people me-1"></i>Contacts ({{ total_contacts }})
+      </div>
+      {% if total_contacts > 0 %}
+        <div class="table-responsive" style="max-height:420px;overflow-y:auto;">
+          <table class="table table-sm table-hover mb-0">
+            <thead><tr><th>#</th><th>Parent</th><th>Élève</th></tr></thead>
+            <tbody>
+              {% for contact in contacts %}
+                <tr>
+                  <td class="text-muted">{{ forloop.counter }}</td>
+                  <td>{{ contact.name }}</td>
+                  <td>{{ contact.student_name }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="card-body empty-state py-4">
+          <div class="empty-state-icon"><i class="bi bi-people"></i></div>
+          <div class="empty-state-title">Aucun contact disponible</div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<style>.fw-600 { font-weight: 600; }</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const templates = {
+  'general': "Bonjour {name},\n\nMessage général pour tous les parents...\n\nCordialement,\nL'équipe pédagogique",
+  'event': "Bonjour {name},\n\nNous organisons un événement le [DATE]. Votre enfant {student_name} est invité à participer.\n\nCordialement,\nL'équipe pédagogique",
+  'closure': "Bonjour {name},\n\nL'établissement sera fermé du [DATE DÉBUT] au [DATE FIN]. Les cours reprendront le [DATE REPRISE].\n\nCordialement,\nL'administration"
+};
+
+function setTemplate(type) {
+  document.getElementById('message-template').value = templates[type];
+  updatePreview();
+}
+
+function updatePreview() {
+  const msg = document.getElementById('message-template').value;
+  const html = msg
+    .replace(/{name}/g, '<strong>Ahmed</strong>')
+    .replace(/{student_name}/g, '<strong>Fatima</strong>')
+    .replace(/\n/g, '<br>');
+  document.getElementById('preview').innerHTML = html || '<em class="text-muted">L\'aperçu s\'affichera ici...</em>';
+}
+
+document.getElementById('message-template').addEventListener('input', updatePreview);
+</script>
+{% endblock %}
